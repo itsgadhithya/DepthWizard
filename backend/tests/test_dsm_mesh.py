@@ -183,3 +183,41 @@ def test_obj_exporter(tmp_path):
     content = Path(saved).read_text(encoding="utf-8")
     assert "v 0.0000 0.0000 0.0000" in content
     assert "f 1 2 3" in content
+
+
+def test_dsm_mesh_generation_with_image_rgb():
+    """Verify extracting both photographic RGB colors and elevation colors when image_rgb is provided."""
+    w, h = 20, 20
+    zz = np.ones((h, w), dtype=np.float32) * 15.0
+    img_rgb = np.zeros((h, w, 3), dtype=np.uint8)
+    img_rgb[:, :] = [200, 100, 50]  # Distinct photographic color
+
+    transform = [0.0, 1.0, 0.0, 20.0, 0.0, -1.0]
+    bounds = GeoBounds(min_x=0.0, min_y=0.0, max_x=20.0, max_y=20.0, crs="LOCAL")
+
+    dsm = DSMResult(
+        grid=zz,
+        width=w,
+        height=h,
+        crs=None,
+        dsm_type="local_metric",
+        is_local=True,
+        transform=transform,
+        bounds=bounds,
+        resolution_m=1.0,
+        min_elevation_m=15.0,
+        max_elevation_m=15.0,
+        mean_elevation_m=15.0,
+        nodata_value=-9999.0,
+        valid_pixel_count=w * h,
+        valid_coverage_percent=100.0,
+        units="meters",
+    )
+
+    mesh = DSMMeshGenerator.generate_mesh_from_dsm(dsm=dsm, image_rgb=img_rgb, max_grid_size=50)
+    assert mesh.rgb_colors is not None
+    assert mesh.elevation_colors is not None
+    assert mesh.rgb_colors.shape == (w * h, 3)
+    assert np.all(mesh.rgb_colors == [200, 100, 50])
+    assert mesh.colors.shape == (w * h, 3)
+

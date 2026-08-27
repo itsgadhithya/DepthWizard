@@ -20,14 +20,14 @@ class DSMMeshGenerator:
         cls,
         dsm: DSMResult,
         image_rgb: Optional[np.ndarray] = None,
-        max_grid_size: int = 384,
+        max_grid_size: int = 512,
         max_elevation_step_m: float = 200.0,
     ) -> Mesh3D:
         """Create a 3D triangle surface mesh directly from a DSM elevation grid.
 
         Args:
             dsm: DSMResult with 2D float32 elevation grid and spatial bounds.
-            image_rgb: Optional (H, W, 3) uint8 image for texture reference.
+            image_rgb: Optional (H, W, 3) uint8 image for photographic texture reference.
             max_grid_size: Maximum resolution along longest dimension for rendering performance.
             max_elevation_step_m: Maximum elevation discontinuity across a single triangle face.
 
@@ -103,7 +103,18 @@ class DSMMeshGenerator:
         z_max = float(np.max(v_z))
         z_range = max(1e-4, z_max - z_min)
         z_norm = np.clip((v_z - z_min) / z_range, 0.0, 1.0)
-        colors = cls._elevation_to_rgb(z_norm)
+        elevation_colors = cls._elevation_to_rgb(z_norm)
+
+        # Extract real photographic RGB aerial vertex colors if image_rgb provided
+        rgb_colors = None
+        if image_rgb is not None and len(image_rgb.shape) == 3:
+            h_img, w_img = image_rgb.shape[:2]
+            r_img = np.clip((valid_indices[:, 0] * step * h_img) // max(1, h_orig), 0, h_img - 1)
+            c_img = np.clip((valid_indices[:, 1] * step * w_img) // max(1, w_orig), 0, w_img - 1)
+            rgb_colors = image_rgb[r_img, c_img].astype(np.uint8)
+
+        # By default, use RGB aerial colors if available for photorealistic landscape, else elevation colors
+        active_colors = rgb_colors if rgb_colors is not None else elevation_colors
 
         # Build triangular faces (connecting neighbouring valid grid cells)
         faces_list = []
@@ -138,7 +149,9 @@ class DSMMeshGenerator:
             vertices=vertices,
             faces=faces,
             normals=normals,
-            colors=colors,
+            colors=active_colors,
+            rgb_colors=rgb_colors,
+            elevation_colors=elevation_colors,
             uvs=uvs,
             is_local=dsm.is_local,
             dsm_type=dsm.dsm_type,

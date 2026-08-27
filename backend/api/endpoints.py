@@ -228,7 +228,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
     <title>DepthWizard 3D DSM Terrain Viewer — {request_id}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <!-- Three.js + OrbitControls + GLTFLoader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -247,27 +247,27 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
-            padding: 24px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }}
         .container {{
-            max-width: 1400px;
+            max-width: 1440px;
             width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 18px;
         }}
         .header {{
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 16px;
-            padding: 20px 24px;
+            padding: 18px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -277,7 +277,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }}
         .title-group h1 {{
-            font-size: 1.4rem;
+            font-size: 1.35rem;
             font-weight: 700;
             background: linear-gradient(135deg, #60a5fa, #34d399, #c084fc);
             -webkit-background-clip: text;
@@ -311,8 +311,8 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             flex-direction: column;
         }}
         .viewport-header {{
-            padding: 16px 20px;
-            background: rgba(10, 15, 30, 0.9);
+            padding: 14px 20px;
+            background: rgba(10, 15, 30, 0.92);
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
@@ -321,7 +321,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             gap: 12px;
         }}
         .viewport-title {{
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 600;
             display: flex;
             align-items: center;
@@ -339,7 +339,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             align-items: center;
             gap: 8px;
             background: rgba(0, 0, 0, 0.4);
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.08);
             font-size: 0.8rem;
@@ -348,7 +348,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: var(--text-secondary);
-            padding: 3px 7px;
+            padding: 3px 8px;
             border-radius: 4px;
             font-size: 0.75rem;
             font-family: 'JetBrains Mono', monospace;
@@ -384,10 +384,11 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         }}
         #viewport-3d {{
             width: 100%;
-            height: 650px;
-            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+            height: 680px;
+            background: radial-gradient(circle at center, #0e172a 0%, #020617 100%);
             position: relative;
             cursor: grab;
+            outline: none;
         }}
         #viewport-3d:active {{ cursor: grabbing; }}
         
@@ -396,15 +397,15 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             position: absolute;
             top: 16px;
             left: 16px;
-            background: rgba(8, 14, 28, 0.85);
+            background: rgba(8, 14, 28, 0.88);
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 12px;
-            padding: 14px 16px;
+            padding: 12px 16px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
             pointer-events: none;
             backdrop-filter: blur(8px);
             z-index: 10;
@@ -416,6 +417,34 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         }}
         .hud-label {{ color: var(--text-muted); }}
         .hud-val {{ color: #38bdf8; font-weight: 600; }}
+
+        /* Flythrough Crosshair & Instructions */
+        #fly-overlay {{
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(8, 14, 28, 0.92);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            border-radius: 16px;
+            padding: 24px 32px;
+            text-align: center;
+            z-index: 25;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            display: none;
+        }}
+        #fly-overlay h2 {{ font-size: 1.2rem; color: #38bdf8; margin-bottom: 8px; }}
+        #fly-overlay p {{ font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 14px; }}
+        .key-badge {{
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: #f8fafc;
+        }}
         
         /* Elevation Legend Overlay */
         .legend-overlay {{
@@ -450,7 +479,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         }}
         .legend-bar {{
             width: 14px;
-            height: 140px;
+            height: 130px;
             border-radius: 6px;
             background: linear-gradient(to top, 
                 #1b4332 0%, 
@@ -465,7 +494,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            height: 140px;
+            height: 130px;
             font-size: 0.7rem;
             color: var(--text-secondary);
         }}
@@ -480,7 +509,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             background: rgba(0, 0, 0, 0.75);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 9999px;
-            padding: 6px 16px;
+            padding: 6px 18px;
             font-size: 0.75rem;
             color: var(--text-secondary);
             pointer-events: none;
@@ -636,17 +665,40 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                     <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(Physical Metric Scale: 1 unit = 1 metre)</span>
                 </div>
                 <div class="viewport-controls">
-                    <!-- Vertical Exaggeration Slider & Presets -->
+                    <!-- Color Mode Selector -->
+                    <div class="control-group">
+                        <span style="color: var(--text-muted); font-size: 0.75rem;">Color:</span>
+                        <button class="preset-btn active" id="btn-col-rgb" title="Realistic Aerial Photographic Texture">🎨 RGB Texture</button>
+                        <button class="preset-btn" id="btn-col-elevation" title="Scientific Topographic Elevation Colormap">🏔️ Elevation</button>
+                        <button class="preset-btn" id="btn-col-plasma" title="High-Contrast Relief Plasma">⚡ Plasma</button>
+                    </div>
+
+                    <!-- Camera Mode Selector -->
+                    <div class="control-group">
+                        <span style="color: var(--text-muted); font-size: 0.75rem;">Camera:</span>
+                        <button class="preset-btn active" id="btn-cam-orbit" title="360 Orbit & Turntable Mode">🔄 Orbit</button>
+                        <button class="preset-btn" id="btn-cam-fly" title="WASD First-Person Flythrough Mode">🚀 Flythrough</button>
+                    </div>
+
+                    <!-- Vertical Exaggeration -->
                     <div class="control-group">
                         <label for="exaggeration-slider" style="color: var(--text-secondary); cursor: pointer;">Exaggeration:</label>
-                        <input type="range" id="exaggeration-slider" min="1.0" max="10.0" step="0.5" value="1.0" style="width: 80px; cursor: pointer;">
-                        <span id="exaggeration-val" style="font-family: 'JetBrains Mono'; color: #38bdf8; min-width: 32px;">1.0x</span>
-                        <div style="display: flex; gap: 4px; margin-left: 4px;">
+                        <input type="range" id="exaggeration-slider" min="1.0" max="10.0" step="0.5" value="1.0" style="width: 70px; cursor: pointer;">
+                        <span id="exaggeration-val" style="font-family: 'JetBrains Mono'; color: #38bdf8; min-width: 30px;">1.0x</span>
+                        <div style="display: flex; gap: 3px; margin-left: 2px;">
                             <button class="preset-btn active" data-exag="1.0">1x</button>
                             <button class="preset-btn" data-exag="2.0">2x</button>
                             <button class="preset-btn" data-exag="5.0">5x</button>
                             <button class="preset-btn" data-exag="10.0">10x</button>
                         </div>
+                    </div>
+
+                    <!-- Background Theme -->
+                    <div class="control-group">
+                        <span style="color: var(--text-muted); font-size: 0.75rem;">Theme:</span>
+                        <button class="preset-btn active" id="btn-bg-dark">Dark</button>
+                        <button class="preset-btn" id="btn-bg-space">Space</button>
+                        <button class="preset-btn" id="btn-bg-fog">Fog</button>
                     </div>
 
                     <!-- Action Buttons -->
@@ -659,10 +711,22 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             </div>
 
             <!-- Viewport Canvas Container -->
-            <div id="viewport-3d">
+            <div id="viewport-3d" tabindex="0">
                 <div id="loading-spinner">
                     <div class="spinner"></div>
                     <span>Constructing 3D Terrain Surface Mesh...</span>
+                </div>
+
+                <!-- Flythrough Click to Start Overlay -->
+                <div id="fly-overlay">
+                    <h2>🚀 First-Person Flythrough</h2>
+                    <p>Click anywhere inside this box to lock the cursor and fly over the terrain.</p>
+                    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px;">
+                        <div><span class="key-badge">W A S D</span> Move</div>
+                        <div><span class="key-badge">Q / E</span> Down / Up</div>
+                        <div><span class="key-badge">Mouse</span> Look</div>
+                        <div><span class="key-badge">Esc</span> Release</div>
+                    </div>
                 </div>
 
                 <!-- Live Telemetry HUD -->
@@ -678,6 +742,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                     <div class="hud-row"><span class="hud-label">Length (Y):</span><span class="hud-val" id="hud-l">{mesh_l:.1f} m</span></div>
                     <div class="hud-row"><span class="hud-label">Triangles:</span><span class="hud-val" id="hud-tris">{mesh_tris:,}</span></div>
                     <div class="hud-row"><span class="hud-label">Exaggeration:</span><span class="hud-val" id="hud-exag">1.0x</span></div>
+                    <div class="hud-row"><span class="hud-label">FPS:</span><span class="hud-val" id="hud-fps">60 fps</span></div>
                 </div>
 
                 <!-- Elevation Legend -->
@@ -696,7 +761,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                 </div>
 
                 <!-- Navigation Guide -->
-                <div class="hud-instructions">
+                <div class="hud-instructions" id="instructions-pill">
                     🖱️ Left Click: 360° Orbit &nbsp;|&nbsp; Right Click: Pan &nbsp;|&nbsp; Scroll: Zoom &nbsp;|&nbsp; Double Click: Focus
                 </div>
             </div>
@@ -783,18 +848,40 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
     <script>
         const container = document.getElementById('viewport-3d');
         const spinner = document.getElementById('loading-spinner');
+        const flyOverlay = document.getElementById('fly-overlay');
+        const instructionsPill = document.getElementById('instructions-pill');
         const glbUrl = '/api/v1/artifacts/{request_id}/dsm_model.glb';
 
         let scene, camera, renderer, controls;
         let dsmMesh = null;
         let dsmGroup = null;
-        let sunLight, fillLight, ambientLight;
+        let sunLight, fillLight, ambientLight, hemiLight;
         let modelCenter = new THREE.Vector3();
         let modelSize = new THREE.Vector3();
         let autoRotate = false;
         let wireframeMode = false;
         let defaultCameraPos = new THREE.Vector3();
         let defaultTarget = new THREE.Vector3();
+
+        // Color buffers
+        let activeColorMode = 'rgb'; // 'rgb', 'elevation', 'plasma'
+        let cachedRgbColors = null;
+        let cachedElevationColors = null;
+        let cachedPlasmaColors = null;
+        let activeGeometry = null;
+
+        // Camera control modes: 'orbit' vs 'fly'
+        let cameraMode = 'orbit';
+        let isPointerLocked = false;
+        let flyMoveSpeed = 30.0;
+        const flyKeys = {{}};
+        const flyEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+        const flyDelta = new THREE.Vector3();
+
+        // FPS counter
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let fpsAccum = 0;
 
         function init() {{
             const width = container.clientWidth;
@@ -838,7 +925,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             fillLight.position.set(-300, 200, -300);
             scene.add(fillLight);
 
-            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x1a243b, 0.4);
+            hemiLight = new THREE.HemisphereLight(0xffffff, 0x1a243b, 0.4);
             scene.add(hemiLight);
 
             // DSM Container Group
@@ -848,14 +935,49 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             // Resize handler
             window.addEventListener('resize', onWindowResize);
 
+            // Setup UI Controls & Fly Listeners
+            setupControls();
+
             // Load Model
             loadGLB();
 
-            // Setup UI Controls
-            setupControls();
-
             // Render loop
             animate();
+        }}
+
+        // Colormap generators
+        function makeElevationRGB(t) {{
+            // 6-stop natural terrain ramp: valley green -> emerald -> ochre -> ridge brown -> slate rock -> snow white
+            const stops = [
+                {{ t: 0.00, c: [27/255, 67/255, 50/255] }},
+                {{ t: 0.18, c: [64/255, 145/255, 108/255] }},
+                {{ t: 0.40, c: [212/255, 163/255, 115/255] }},
+                {{ t: 0.65, c: [156/255, 102/255, 68/255] }},
+                {{ t: 0.85, c: [120/255, 130/255, 140/255] }},
+                {{ t: 1.00, c: [248/255, 250/255, 252/255] }}
+            ];
+            t = Math.max(0.0, Math.min(1.0, t));
+            for (let i = 0; i < stops.length - 1; i++) {{
+                if (t >= stops[i].t && t <= stops[i+1].t) {{
+                    const span = stops[i+1].t - stops[i].t;
+                    const f = (t - stops[i].t) / (span || 1e-4);
+                    return [
+                        stops[i].c[0] + f * (stops[i+1].c[0] - stops[i].c[0]),
+                        stops[i].c[1] + f * (stops[i+1].c[1] - stops[i].c[1]),
+                        stops[i].c[2] + f * (stops[i+1].c[2] - stops[i].c[2]),
+                    ];
+                }}
+            }}
+            return [1.0, 1.0, 1.0];
+        }}
+
+        function makePlasmaRGB(t) {{
+            t = Math.max(0.0, Math.min(1.0, t));
+            return [
+                Math.sin(t * Math.PI * 0.8) * 0.9 + 0.1,
+                Math.sin(t * Math.PI * 1.5) * 0.8 + 0.1,
+                Math.cos(t * Math.PI * 0.9) * 0.9 + 0.1
+            ];
         }}
 
         function loadGLB() {{
@@ -866,13 +988,53 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                     spinner.style.display = 'none';
                     dsmMesh = gltf.scene;
 
-                    // Ensure DoubleSided and Natural Matte Terrain Shading on PBR materials
+                    // Traverse mesh to configure materials and precompute color buffers
                     dsmMesh.traverse(function (child) {{
-                        if (child.isMesh && child.material) {{
+                        if (child.isMesh && child.geometry) {{
+                            activeGeometry = child.geometry;
                             child.material.side = THREE.DoubleSide;
                             child.material.roughness = 0.65;
                             child.material.metalness = 0.02;
-                            child.material.flatShading = false;
+                            child.material.vertexColors = true;
+
+                            // Cache original RGB colors
+                            const colorAttr = activeGeometry.getAttribute('color');
+                            if (colorAttr) {{
+                                cachedRgbColors = new Float32Array(colorAttr.array);
+                            }}
+
+                            // Compute elevation buffer
+                            const posAttr = activeGeometry.getAttribute('position');
+                            const count = posAttr.count;
+                            cachedElevationColors = new Float32Array(count * 3);
+                            cachedPlasmaColors = new Float32Array(count * 3);
+
+                            let minZ = Infinity, maxZ = -Infinity;
+                            for (let i = 0; i < count; i++) {{
+                                const z = posAttr.getZ(i);
+                                if (z < minZ) minZ = z;
+                                if (z > maxZ) maxZ = z;
+                            }}
+                            const rangeZ = (maxZ - minZ) || 1.0;
+
+                            for (let i = 0; i < count; i++) {{
+                                const z = posAttr.getZ(i);
+                                const normZ = (z - minZ) / rangeZ;
+
+                                const [er, eg, eb] = makeElevationRGB(normZ);
+                                cachedElevationColors[i * 3] = er;
+                                cachedElevationColors[i * 3 + 1] = eg;
+                                cachedElevationColors[i * 3 + 2] = eb;
+
+                                const [pr, pg, pb] = makePlasmaRGB(normZ);
+                                cachedPlasmaColors[i * 3] = pr;
+                                cachedPlasmaColors[i * 3 + 1] = pg;
+                                cachedPlasmaColors[i * 3 + 2] = pb;
+                            }}
+
+                            if (!cachedRgbColors) {{
+                                cachedRgbColors = new Float32Array(cachedElevationColors);
+                            }}
                         }}
                     }});
 
@@ -941,14 +1103,85 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
 
             controls.target.copy(center);
             controls.update();
+            flyEuler.setFromQuaternion(camera.quaternion, 'YXZ');
+        }}
+
+        function setColorMode(mode) {{
+            activeColorMode = mode;
+            if (!activeGeometry) return;
+            const attr = activeGeometry.getAttribute('color');
+            if (!attr) return;
+
+            let source = cachedRgbColors;
+            if (mode === 'elevation') source = cachedElevationColors;
+            else if (mode === 'plasma') source = cachedPlasmaColors;
+
+            if (source) {{
+                attr.array.set(source);
+                attr.needsUpdate = true;
+            }}
+
+            document.getElementById('btn-col-rgb').classList.toggle('active', mode === 'rgb');
+            document.getElementById('btn-col-elevation').classList.toggle('active', mode === 'elevation');
+            document.getElementById('btn-col-plasma').classList.toggle('active', mode === 'plasma');
+        }}
+
+        function setBackground(theme) {{
+            if (theme === 'dark') {{
+                scene.background = new THREE.Color(0x070b14);
+                scene.fog = null;
+            }} else if (theme === 'space') {{
+                scene.background = new THREE.Color(0x000004);
+                scene.fog = null;
+            }} else if (theme === 'fog') {{
+                scene.background = new THREE.Color(0x0a1224);
+                scene.fog = new THREE.FogExp2(0x0a1224, 0.005);
+            }}
+
+            document.getElementById('btn-bg-dark').classList.toggle('active', theme === 'dark');
+            document.getElementById('btn-bg-space').classList.toggle('active', theme === 'space');
+            document.getElementById('btn-bg-fog').classList.toggle('active', theme === 'fog');
+        }}
+
+        function setCameraMode(mode) {{
+            cameraMode = mode;
+            document.getElementById('btn-cam-orbit').classList.toggle('active', mode === 'orbit');
+            document.getElementById('btn-cam-fly').classList.toggle('active', mode === 'fly');
+
+            if (mode === 'fly') {{
+                controls.enabled = false;
+                flyOverlay.style.display = 'block';
+                instructionsPill.innerHTML = '🚀 Flythrough Mode: Click canvas to lock mouse. <span class="key-badge">WASD</span> move, <span class="key-badge">Q/E</span> elevation, <span class="key-badge">Esc</span> exit';
+            }} else {{
+                controls.enabled = true;
+                flyOverlay.style.display = 'none';
+                instructionsPill.innerHTML = '🖱️ Left Click: 360° Orbit &nbsp;|&nbsp; Right Click: Pan &nbsp;|&nbsp; Scroll: Zoom &nbsp;|&nbsp; Double Click: Focus';
+                if (document.pointerLockElement === container) {{
+                    document.exitPointerLock();
+                }}
+            }}
         }}
 
         function setupControls() {{
+            // Color Mode buttons
+            document.getElementById('btn-col-rgb').addEventListener('click', () => setColorMode('rgb'));
+            document.getElementById('btn-col-elevation').addEventListener('click', () => setColorMode('elevation'));
+            document.getElementById('btn-col-plasma').addEventListener('click', () => setColorMode('plasma'));
+
+            // Camera Mode buttons
+            document.getElementById('btn-cam-orbit').addEventListener('click', () => setCameraMode('orbit'));
+            document.getElementById('btn-cam-fly').addEventListener('click', () => setCameraMode('fly'));
+
+            // Background Theme buttons
+            document.getElementById('btn-bg-dark').addEventListener('click', () => setBackground('dark'));
+            document.getElementById('btn-bg-space').addEventListener('click', () => setBackground('space'));
+            document.getElementById('btn-bg-fog').addEventListener('click', () => setBackground('fog'));
+
             // Vertical Exaggeration Slider & Preset buttons
             const slider = document.getElementById('exaggeration-slider');
             const exagVal = document.getElementById('exaggeration-val');
             const hudExag = document.getElementById('hud-exag');
-            const presetBtns = document.querySelectorAll('.preset-btn');
+            const presetBtns = document.querySelectorAll('.preset-btn[data-exag]');
 
             function setExaggeration(factor) {{
                 slider.value = factor;
@@ -1044,6 +1277,37 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                 }}
                 onWindowResize();
             }});
+
+            // Pointer Lock & Flythrough listeners
+            container.addEventListener('click', () => {{
+                if (cameraMode === 'fly' && !isPointerLocked) {{
+                    container.requestPointerLock();
+                }}
+            }});
+
+            flyOverlay.addEventListener('click', () => {{
+                container.requestPointerLock();
+            }});
+
+            document.addEventListener('pointerlockchange', () => {{
+                isPointerLocked = (document.pointerLockElement === container);
+                if (cameraMode === 'fly') {{
+                    flyOverlay.style.display = isPointerLocked ? 'none' : 'block';
+                }}
+            }});
+
+            document.addEventListener('mousemove', (e) => {{
+                if (cameraMode === 'fly' && isPointerLocked) {{
+                    const sens = 0.0022;
+                    flyEuler.y -= e.movementX * sens;
+                    flyEuler.x -= e.movementY * sens;
+                    flyEuler.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, flyEuler.x));
+                    camera.quaternion.setFromEuler(flyEuler);
+                }}
+            }});
+
+            document.addEventListener('keydown', (e) => {{ flyKeys[e.code] = true; }});
+            document.addEventListener('keyup', (e) => {{ flyKeys[e.code] = false; }});
         }}
 
         function onWindowResize() {{
@@ -1056,7 +1320,35 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
 
         function animate() {{
             requestAnimationFrame(animate);
-            controls.update();
+            const now = performance.now();
+            const dt = (now - lastTime) / 1000.0;
+            lastTime = now;
+
+            // FPS Counter
+            frameCount++;
+            fpsAccum += dt;
+            if (fpsAccum >= 0.5) {{
+                document.getElementById('hud-fps').textContent = Math.round(frameCount / fpsAccum) + ' fps';
+                frameCount = 0;
+                fpsAccum = 0;
+            }}
+
+            // Flythrough Movement handling
+            if (cameraMode === 'fly' && isPointerLocked) {{
+                const speed = flyMoveSpeed * dt;
+                flyDelta.set(0, 0, 0);
+                if (flyKeys['KeyW'] || flyKeys['ArrowUp']) flyDelta.z -= speed;
+                if (flyKeys['KeyS'] || flyKeys['ArrowDown']) flyDelta.z += speed;
+                if (flyKeys['KeyA'] || flyKeys['ArrowLeft']) flyDelta.x -= speed;
+                if (flyKeys['KeyD'] || flyKeys['ArrowRight']) flyDelta.x += speed;
+                if (flyKeys['KeyE'] || flyKeys['Space']) flyDelta.y += speed;
+                if (flyKeys['KeyQ'] || flyKeys['ShiftLeft']) flyDelta.y -= speed;
+                flyDelta.applyQuaternion(camera.quaternion);
+                camera.position.add(flyDelta);
+            }} else if (cameraMode === 'orbit') {{
+                controls.update();
+            }}
+
             renderer.render(scene, camera);
         }}
 

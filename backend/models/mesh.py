@@ -32,6 +32,8 @@ class Mesh3D(BaseModel):
     faces: np.ndarray = Field(..., description="(M, 3) uint32 triangle indices referencing vertices")
     normals: Optional[np.ndarray] = Field(default=None, description="Optional (N, 3) float32 surface normal vectors")
     colors: Optional[np.ndarray] = Field(default=None, description="Optional (N, 3) uint8 or float32 RGB colors")
+    rgb_colors: Optional[np.ndarray] = Field(default=None, description="Optional (N, 3) uint8 photographic RGB colors")
+    elevation_colors: Optional[np.ndarray] = Field(default=None, description="Optional (N, 3) uint8 elevation colormap colors")
     uvs: Optional[np.ndarray] = Field(default=None, description="Optional (N, 2) float32 texture coordinates [U, V]")
     
     is_local: bool = True
