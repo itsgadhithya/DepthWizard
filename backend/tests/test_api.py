@@ -105,7 +105,7 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     assert "text/html" in viewer_resp.headers["content-type"]
     assert "Local Metric DSM" in viewer_resp.text
     assert "THREE.GLTFLoader" in viewer_resp.text
-    assert "elevation-legend" in viewer_resp.text
+    assert "Free 360° Orbit" in viewer_resp.text
 
     # Test dedicated standalone 3D viewer endpoint
     standalone_viewer_resp = test_client.get(f"/api/v1/viewer/{req_id}")

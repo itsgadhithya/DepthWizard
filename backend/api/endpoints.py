@@ -445,60 +445,6 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             font-size: 0.75rem;
             color: #f8fafc;
         }}
-        
-        /* Elevation Legend Overlay */
-        .legend-overlay {{
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(8, 14, 28, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            padding: 12px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            backdrop-filter: blur(8px);
-            z-index: 10;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-        }}
-        .legend-title {{
-            font-weight: 600;
-            color: var(--text-primary);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            text-align: center;
-        }}
-        .legend-body {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
-        .legend-bar {{
-            width: 14px;
-            height: 130px;
-            border-radius: 6px;
-            background: linear-gradient(to top, 
-                #1b4332 0%, 
-                #40916c 18%, 
-                #d4a373 40%, 
-                #9c6644 65%, 
-                #78828c 85%, 
-                #f8fafc 100%);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }}
-        .legend-ticks {{
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 130px;
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-        }}
-        .legend-ticks span {{ line-height: 1; }}
 
         /* Instructions Pill */
         .hud-instructions {{
@@ -669,14 +615,14 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                     <div class="control-group">
                         <span style="color: var(--text-muted); font-size: 0.75rem;">Color:</span>
                         <button class="preset-btn active" id="btn-col-rgb" title="Realistic Aerial Photographic Texture">🎨 RGB Texture</button>
-                        <button class="preset-btn" id="btn-col-elevation" title="Scientific Topographic Elevation Colormap">🏔️ Elevation</button>
+                        <button class="preset-btn" id="btn-col-elevation" title="Realistic Topographic Elevation Colormap">🏔️ Realistic Terrain</button>
                         <button class="preset-btn" id="btn-col-plasma" title="High-Contrast Relief Plasma">⚡ Plasma</button>
                     </div>
 
                     <!-- Camera Mode Selector -->
                     <div class="control-group">
                         <span style="color: var(--text-muted); font-size: 0.75rem;">Camera:</span>
-                        <button class="preset-btn active" id="btn-cam-orbit" title="360 Orbit & Turntable Mode">🔄 Orbit</button>
+                        <button class="preset-btn active" id="btn-cam-orbit" title="360 Full Freeform Orbit Mode (All Angles X, Y, Z)">🔄 Free 360° Orbit</button>
                         <button class="preset-btn" id="btn-cam-fly" title="WASD First-Person Flythrough Mode">🚀 Flythrough</button>
                     </div>
 
@@ -703,7 +649,9 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
 
                     <!-- Action Buttons -->
                     <button class="control-btn" id="btn-fit-view" title="Auto-Frame Terrain">🎯 Fit View</button>
-                    <button class="control-btn" id="btn-top-view" title="Top-Down Nadir View">🧭 Top View</button>
+                    <button class="control-btn" id="btn-top-view" title="Top-Down Nadir View (Z Axis)">🧭 Top View</button>
+                    <button class="control-btn" id="btn-front-view" title="Front View (Y Axis)">📐 Front</button>
+                    <button class="control-btn" id="btn-side-view" title="Side Profile View (X Axis)">↔ Side</button>
                     <button class="control-btn" id="btn-wireframe" title="Toggle Wireframe Mesh">📐 Wireframe</button>
                     <button class="control-btn" id="btn-autorotate" title="Toggle 360 Turntable Rotation">🔄 Auto-Rotate</button>
                     <button class="control-btn" id="btn-fullscreen" title="Toggle Fullscreen View">⛶ Fullscreen</button>
@@ -745,24 +693,9 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                     <div class="hud-row"><span class="hud-label">FPS:</span><span class="hud-val" id="hud-fps">60 fps</span></div>
                 </div>
 
-                <!-- Elevation Legend -->
-                <div class="legend-overlay" id="elevation-legend">
-                    <div class="legend-title">Elevation (m)</div>
-                    <div class="legend-body">
-                        <div class="legend-bar"></div>
-                        <div class="legend-ticks">
-                            <span id="leg-max">{mesh_zmax:.1f} m</span>
-                            <span id="leg-75">{(mesh_zmin + mesh_zrange * 0.75):.1f} m</span>
-                            <span id="leg-50">{(mesh_zmin + mesh_zrange * 0.50):.1f} m</span>
-                            <span id="leg-25">{(mesh_zmin + mesh_zrange * 0.25):.1f} m</span>
-                            <span id="leg-min">{mesh_zmin:.1f} m</span>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Navigation Guide -->
                 <div class="hud-instructions" id="instructions-pill">
-                    🖱️ Left Click: 360° Orbit &nbsp;|&nbsp; Right Click: Pan &nbsp;|&nbsp; Scroll: Zoom &nbsp;|&nbsp; Double Click: Focus
+                    🖱️ Left Drag: 360° Free Rotation (X, Y, Z) &nbsp;|&nbsp; Right Drag: Pan &nbsp;|&nbsp; Scroll: Zoom &nbsp;|&nbsp; Double Click: Focus
                 </div>
             </div>
         </div>
@@ -899,33 +832,39 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             renderer.setSize(width, height);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.15;
+            renderer.toneMappingExposure = 1.25;
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             container.appendChild(renderer.domElement);
 
-            // 4. OrbitControls
+            // 4. OrbitControls: FULL UNRESTRICTED ROTATION IN ALL ANGLES (X, Y, Z)
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.08;
             controls.screenSpacePanning = true;
-            controls.maxPolarAngle = Math.PI / 2 + 0.15;
-            controls.minDistance = 0.1;
+            controls.minPolarAngle = 0; // Unlocked top pole
+            controls.maxPolarAngle = Math.PI; // Unlocked bottom pole (full 360 vertical flip/spin)
+            controls.minAzimuthAngle = -Infinity; // Unlocked horizontal spin
+            controls.maxAzimuthAngle = Infinity; // Unlocked horizontal spin
+            controls.rotateSpeed = 1.0;
+            controls.zoomSpeed = 1.2;
+            controls.panSpeed = 1.0;
+            controls.minDistance = 0.01;
             controls.maxDistance = 50000;
 
-            // 5. Lighting Setup: Sun Directional + Sky Ambient + Opposite Fill
-            ambientLight = new THREE.AmbientLight(0xdde8ff, 0.55);
+            // 5. Lighting Setup: Vibrant Realistic Lighting with Sun + Ambient + Fill
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
             scene.add(ambientLight);
 
-            sunLight = new THREE.DirectionalLight(0xfff5e4, 1.35);
+            sunLight = new THREE.DirectionalLight(0xfff8ee, 1.25);
             sunLight.position.set(300, 500, 300);
             scene.add(sunLight);
 
-            fillLight = new THREE.DirectionalLight(0x88aacc, 0.45);
+            fillLight = new THREE.DirectionalLight(0xb0c4de, 0.55);
             fillLight.position.set(-300, 200, -300);
             scene.add(fillLight);
 
-            hemiLight = new THREE.HemisphereLight(0xffffff, 0x1a243b, 0.4);
+            hemiLight = new THREE.HemisphereLight(0xffffff, 0x223344, 0.45);
             scene.add(hemiLight);
 
             // DSM Container Group
@@ -947,7 +886,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
 
         // Colormap generators
         function makeElevationRGB(t) {{
-            // 6-stop natural terrain ramp: valley green -> emerald -> ochre -> ridge brown -> slate rock -> snow white
+            // 6-stop realistic natural terrain gradient: valley forest green -> meadow emerald -> warm golden ochre -> terracotta mountain ridge -> alpine slate -> summit snow
             const stops = [
                 {{ t: 0.00, c: [27/255, 67/255, 50/255] }},
                 {{ t: 0.18, c: [64/255, 145/255, 108/255] }},
@@ -993,8 +932,8 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                         if (child.isMesh && child.geometry) {{
                             activeGeometry = child.geometry;
                             child.material.side = THREE.DoubleSide;
-                            child.material.roughness = 0.65;
-                            child.material.metalness = 0.02;
+                            child.material.roughness = 0.45;
+                            child.material.metalness = 0.05;
                             child.material.vertexColors = true;
 
                             // Cache original RGB colors
@@ -1052,16 +991,6 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                     document.getElementById('hud-zrange').textContent = modelSize.z.toFixed(1) + ' m';
                     document.getElementById('hud-zmin').textContent = box.min.z.toFixed(1) + ' m';
                     document.getElementById('hud-zmax').textContent = box.max.z.toFixed(1) + ' m';
-
-                    // Update Elevation Legend tick values
-                    const zMin = box.min.z;
-                    const zMax = box.max.z;
-                    const zRange = zMax - zMin;
-                    document.getElementById('leg-max').textContent = zMax.toFixed(1) + ' m';
-                    document.getElementById('leg-75').textContent = (zMin + zRange * 0.75).toFixed(1) + ' m';
-                    document.getElementById('leg-50').textContent = (zMin + zRange * 0.50).toFixed(1) + ' m';
-                    document.getElementById('leg-25').textContent = (zMin + zRange * 0.25).toFixed(1) + ' m';
-                    document.getElementById('leg-min').textContent = zMin.toFixed(1) + ' m';
 
                     // Automatic Framing Calculation (fills 85% of viewport)
                     frameModel(box);
@@ -1155,7 +1084,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             }} else {{
                 controls.enabled = true;
                 flyOverlay.style.display = 'none';
-                instructionsPill.innerHTML = '🖱️ Left Click: 360° Orbit &nbsp;|&nbsp; Right Click: Pan &nbsp;|&nbsp; Scroll: Zoom &nbsp;|&nbsp; Double Click: Focus';
+                instructionsPill.innerHTML = '🖱️ Left Drag: 360° Free Rotation (X, Y, Z) &nbsp;|&nbsp; Right Drag: Pan &nbsp;|&nbsp; Scroll: Zoom &nbsp;|&nbsp; Double Click: Focus';
                 if (document.pointerLockElement === container) {{
                     document.exitPointerLock();
                 }}
@@ -1215,7 +1144,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                 }}
             }});
 
-            // Top View
+            // Top View (Z axis / Nadir)
             document.getElementById('btn-top-view').addEventListener('click', function () {{
                 if (dsmMesh) {{
                     const box = new THREE.Box3().setFromObject(dsmMesh);
@@ -1227,7 +1156,46 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                     const fov = camera.fov * (Math.PI / 180);
                     const dist = (maxDim / 2) / Math.tan(fov / 2) * 1.18;
 
-                    camera.position.set(center.x, center.y + dist, center.z);
+                    camera.position.set(center.x, center.y + 0.001, center.z + dist);
+                    camera.up.set(0, 1, 0);
+                    controls.target.copy(center);
+                    controls.update();
+                }}
+            }});
+
+            // Front View (Y axis)
+            document.getElementById('btn-front-view').addEventListener('click', function () {{
+                if (dsmMesh) {{
+                    const box = new THREE.Box3().setFromObject(dsmMesh);
+                    const center = new THREE.Vector3();
+                    const size = new THREE.Vector3();
+                    box.getCenter(center);
+                    box.getSize(size);
+                    const maxDim = Math.max(size.x, size.z);
+                    const fov = camera.fov * (Math.PI / 180);
+                    const dist = (maxDim / 2) / Math.tan(fov / 2) * 1.18;
+
+                    camera.position.set(center.x, center.y - dist, center.z);
+                    camera.up.set(0, 0, 1);
+                    controls.target.copy(center);
+                    controls.update();
+                }}
+            }});
+
+            // Side View (X axis)
+            document.getElementById('btn-side-view').addEventListener('click', function () {{
+                if (dsmMesh) {{
+                    const box = new THREE.Box3().setFromObject(dsmMesh);
+                    const center = new THREE.Vector3();
+                    const size = new THREE.Vector3();
+                    box.getCenter(center);
+                    box.getSize(size);
+                    const maxDim = Math.max(size.y, size.z);
+                    const fov = camera.fov * (Math.PI / 180);
+                    const dist = (maxDim / 2) / Math.tan(fov / 2) * 1.18;
+
+                    camera.position.set(center.x + dist, center.y, center.z);
+                    camera.up.set(0, 0, 1);
                     controls.target.copy(center);
                     controls.update();
                 }}
@@ -1253,7 +1221,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                 autoRotate = !autoRotate;
                 btnRotate.classList.toggle('active', autoRotate);
                 controls.autoRotate = autoRotate;
-                controls.autoRotateSpeed = 2.0;
+                controls.autoRotateSpeed = 2.5;
             }});
 
             // Fullscreen Toggle
