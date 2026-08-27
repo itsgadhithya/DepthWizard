@@ -10,7 +10,7 @@ from backend.models.calibration import CalibrationReference, CalibrationMethod, 
 
 
 def test_pipeline_plain_image_provisional_fallback(synthetic_jpeg_bytes):
-    """Provisional Fallback: Plain image with no metric references produces provisional metric depth (10x) in State C."""
+    """Provisional Fallback: Plain image with no metric references produces provisional metric depth (10x) and Local Metric DSM in State C."""
     summary = SingleImagePipeline.process(
         image_input=synthetic_jpeg_bytes,
         filename="plain_image.jpg",
@@ -22,7 +22,8 @@ def test_pipeline_plain_image_provisional_fallback(synthetic_jpeg_bytes):
     assert summary.camera_model_available is True
     assert summary.metric_depth_available is True  # Provisional metric scale applied
     assert summary.georeferencing_available is False  # Plain image has NO georeferencing
-    assert summary.dsm_available is False
+    assert summary.dsm_available is True  # Local Metric DSM generated
+    assert summary.dsm_type == "local_metric"
     assert summary.state == PipelineState.STATE_C
 
     # Calibration details
@@ -43,11 +44,13 @@ def test_pipeline_plain_image_provisional_fallback(synthetic_jpeg_bytes):
     assert "relative_depth_visual_png" in summary.artifacts
     assert "point_cloud_ply" in summary.artifacts
     assert "metric_depth_npy" in summary.artifacts
-    assert "dsm_geotiff" not in summary.artifacts
+    assert "dsm_geotiff" in summary.artifacts
+    assert "dsm_npy" in summary.artifacts
+    assert "dsm_visual_png" in summary.artifacts
 
 
 def test_pipeline_state_c_metric_calibration(synthetic_jpeg_bytes):
-    """State C: Plain image + explicit GCP calibration produces metric depth and 3D geometry in meters."""
+    """State C: Plain image + explicit GCP calibration produces metric depth, 3D geometry in meters, and Local Metric DSM."""
     gcps = [
         GCPPoint(pixel_u=20, pixel_v=20, depth_z=30.0),
         GCPPoint(pixel_u=60, pixel_v=60, depth_z=30.0),
@@ -60,12 +63,17 @@ def test_pipeline_state_c_metric_calibration(synthetic_jpeg_bytes):
         calibration_ref=calib_ref,
     )
 
-    assert summary.relative_depth_available
-    assert summary.metric_depth_available
+    assert summary.relative_depth_available is True
+    assert summary.metric_depth_available is True
+    assert summary.dsm_available is True
+    assert summary.dsm_type == "local_metric"
     assert summary.state == PipelineState.STATE_C
     assert "metric_depth_npy" in summary.artifacts
+    assert "dsm_geotiff" in summary.artifacts
     assert summary.calibration is not None
-    assert summary.calibration.success
+    assert summary.calibration.success is True
+    assert summary.calibration.method == CalibrationMethod.GCP
+    assert summary.calibration.is_provisional is False
 
 
 def test_pipeline_state_d_georeferenced_dsm(synthetic_jpeg_with_exif):
@@ -87,6 +95,7 @@ def test_pipeline_state_d_georeferenced_dsm(synthetic_jpeg_with_exif):
     assert summary.metric_depth_available
     assert summary.georeferencing_available
     assert summary.dsm_available
+    assert summary.dsm_type == "georeferenced_metric"
     assert summary.state == PipelineState.STATE_D
 
     # Artifacts check
@@ -94,6 +103,8 @@ def test_pipeline_state_d_georeferenced_dsm(synthetic_jpeg_with_exif):
     assert "metric_depth_npy" in summary.artifacts
     assert "point_cloud_ply" in summary.artifacts
     assert "dsm_geotiff" in summary.artifacts
+    assert "dsm_npy" in summary.artifacts
+    assert "dsm_visual_png" in summary.artifacts
     assert "dsm_hillshade_png" in summary.artifacts
     assert "dsm_color_relief_png" in summary.artifacts
 
@@ -105,7 +116,7 @@ def test_pipeline_state_d_georeferenced_dsm(synthetic_jpeg_with_exif):
 def test_pipeline_georeferenced_rgb_geotiff_capabilities(synthetic_rgb_geotiff_bytes):
     """Regression test: Georeferenced RGB GeoTIFF (e.g. Potsdam 5cm GSD) reports georeferencing_available=True
 
-    and produces provisional metric depth (is_provisional=True) in State C/D when no metric calibration reference is supplied.
+    and produces provisional metric depth and DSM in State C/D when no metric calibration reference is supplied.
     """
     summary = SingleImagePipeline.process(
         image_input=synthetic_rgb_geotiff_bytes,
@@ -117,6 +128,8 @@ def test_pipeline_georeferenced_rgb_geotiff_capabilities(synthetic_rgb_geotiff_b
     assert summary.relative_depth_available is True
     assert summary.camera_model_available is True
     assert summary.metric_depth_available is True  # Provisional scale applied
+    assert summary.dsm_available is True
+    assert summary.dsm_type in ["georeferenced_metric", "local_metric"]
     assert summary.calibration is not None
     assert summary.calibration.is_provisional is True
     assert summary.calibration.scale_factor == 10.0
@@ -139,7 +152,7 @@ def test_pipeline_georeferenced_rgb_geotiff_capabilities(synthetic_rgb_geotiff_b
 def test_pipeline_single_band_dem_passthrough(synthetic_geotiff_bytes):
     """Regression test: Single-band DEM GeoTIFF must be classified as DEM, bypass optical inference,
 
-    and report georeferencing_available=True.
+    and report georeferencing_available=True and produce valid DSM.
     """
     summary = SingleImagePipeline.process(
         image_input=synthetic_geotiff_bytes,
@@ -152,18 +165,21 @@ def test_pipeline_single_band_dem_passthrough(synthetic_geotiff_bytes):
     assert summary.metadata.is_dem is True
     assert summary.georeferencing_available is True
     assert summary.metric_depth_available is True
+    assert summary.dsm_available is True
     assert summary.calibration is not None
     assert summary.calibration.is_provisional is True
     assert any("elevation raster (DEM)" in w for w in summary.warnings)
 
 
 def test_pipeline_gps_only_image_capabilities(synthetic_jpeg_with_exif):
-    """Regression test: An image with GPS EXIF but no orientation or metric calibration must produce:
+    """Regression test: An image with GPS EXIF but no orientation or metric calibration produces:
     - georeferencing_available = True
     - camera_position_available = True
     - camera_orientation_available = False
     - complete_camera_pose_available = False
     - metric_depth_available = True (provisional)
+    - dsm_available = True (local metric DSM)
+    - dsm_type = 'local_metric' (since orientation is uncalibrated)
     - is_provisional = True
     """
     summary = SingleImagePipeline.process(
@@ -179,16 +195,17 @@ def test_pipeline_gps_only_image_capabilities(synthetic_jpeg_with_exif):
     assert summary.camera_orientation_available is False
     assert summary.complete_camera_pose_available is False
     assert summary.metric_depth_available is True
+    assert summary.dsm_available is True
+    assert summary.dsm_type in ["georeferenced_metric", "local_metric"]
     assert summary.calibration is not None
     assert summary.calibration.is_provisional is True
     assert summary.calibration.scale_factor == 10.0
 
 
-
 def test_pipeline_manual_scale_end_to_end(synthetic_jpeg_bytes):
     """Regression test: Ordinary RGB image with injected manual scale reference (10x)
 
-    produces calibrated metric depth (metric_depth == 10.0 * relative_depth) and preserves
+    produces calibrated metric depth (metric_depth == 10.0 * relative_depth), Local Metric DSM, and preserves
     the raw relative-depth array unchanged.
     """
     calib_ref = CalibrationReference(
@@ -207,7 +224,9 @@ def test_pipeline_manual_scale_end_to_end(synthetic_jpeg_bytes):
     assert summary.camera_model_available is True
     assert summary.metric_depth_available is True
     assert summary.state == PipelineState.STATE_C
-    assert summary.dsm_available is False  # Plain image has no geospatial georeferencing
+    assert summary.georeferencing_available is False  # Plain image has no geospatial georeferencing
+    assert summary.dsm_available is True  # Local Metric DSM generated!
+    assert summary.dsm_type == "local_metric"
 
     # 2. Calibration summary details
     assert summary.calibration is not None
@@ -219,9 +238,11 @@ def test_pipeline_manual_scale_end_to_end(synthetic_jpeg_bytes):
     # 3. Computational artifacts verification
     raw_rel_path = summary.artifacts["raw_relative_depth_npy"].file_path
     metric_path = summary.artifacts["metric_depth_npy"].file_path
+    dsm_path = summary.artifacts["dsm_npy"].file_path
 
     raw_rel_depth = np.load(raw_rel_path)
     metric_depth = np.load(metric_path)
+    dsm_grid = np.load(dsm_path)
 
     # 4. Numerical verification: metric_depth == 10.0 * raw_rel_depth exactly
     np.testing.assert_allclose(metric_depth, 10.0 * raw_rel_depth, rtol=1e-5, atol=1e-5)
@@ -229,6 +250,7 @@ def test_pipeline_manual_scale_end_to_end(synthetic_jpeg_bytes):
     # 5. Min/Max metric bounds match
     assert pytest.approx(float(np.min(metric_depth)), rel=1e-3) == 10.0 * float(np.min(raw_rel_depth))
     assert pytest.approx(float(np.max(metric_depth)), rel=1e-3) == 10.0 * float(np.max(raw_rel_depth))
+    assert np.any(np.isfinite(dsm_grid))
 
 
 

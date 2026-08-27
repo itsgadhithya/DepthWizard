@@ -198,7 +198,7 @@ def test_camera_relative_depth_to_world_elevation_transform():
 
 
 def test_dsm_rasterizer_validation_guards():
-    """Verify strict rejection when point clouds lack metric calibration or CRS."""
+    """Verify strict rejection when point clouds lack metric calibration and proper handling of local point clouds."""
     # 1. Non-metric point cloud must be rejected
     uncalibrated_pc = PointCloud3D(
         points=np.array([[0, 0, 10], [1, 1, 12]], dtype=np.float32),
@@ -210,7 +210,7 @@ def test_dsm_rasterizer_validation_guards():
     with pytest.raises(ValueError, match="uncalibrated relative point cloud"):
         DSMRasterizer.rasterize(uncalibrated_pc)
 
-    # 2. Metric point cloud without CRS must be rejected
+    # 2. Metric point cloud without CRS produces Local Metric DSM
     no_crs_pc = PointCloud3D(
         points=np.array([[0, 0, 10], [1, 1, 12]], dtype=np.float32),
         coordinate_frame=CoordinateFrame.CAMERA_OPTICAL,
@@ -218,8 +218,10 @@ def test_dsm_rasterizer_validation_guards():
         is_metric=True,
         crs=None,
     )
-    with pytest.raises(ValueError, match="lacks a Projected CRS"):
-        DSMRasterizer.rasterize(no_crs_pc)
+    local_dsm = DSMRasterizer.rasterize(no_crs_pc, is_local=True)
+    assert local_dsm.is_local is True
+    assert local_dsm.dsm_type == "local_metric"
+    assert local_dsm.crs is None
 
     # 3. Empty point cloud must be rejected
     empty_pc = PointCloud3D(

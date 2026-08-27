@@ -35,6 +35,8 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     # Core depth and provisional metric invariants
     assert data["relative_depth_available"] is True
     assert data["metric_depth_available"] is True
+    assert data["dsm_available"] is True
+    assert data["dsm_type"] == "local_metric"
     assert data["state"] == "STATE_C"
     assert data["calibration"]["is_provisional"] is True
     assert data["calibration"]["scale_factor"] == 10.0
@@ -44,15 +46,28 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     assert "depth_inference_ms" in data["timings_ms"]
     assert data["timings_ms"]["depth_inference_ms"] > 0
 
+    # Clean JSON checks: ensure internal paths & bulky structures are NOT leaked
+    for art_name, art_obj in data["artifacts"].items():
+        assert "file_path" not in art_obj, f"Local file path leaked in artifact {art_name}"
+    if "metadata" in data and data["metadata"] is not None:
+        assert "provenance" not in data["metadata"], "Bulky provenance dictionary leaked in metadata"
+    if "calibration" in data and data["calibration"] is not None:
+        assert "details" not in data["calibration"], "Internal calibration details dictionary leaked"
+
     # Artifacts registry
     assert "artifacts" in data
     assert "raw_relative_depth_npy" in data["artifacts"]
     assert "relative_depth_visual_png" in data["artifacts"]
     assert "metric_depth_npy" in data["artifacts"]
+    assert "dsm_geotiff" in data["artifacts"]
+    assert "dsm_npy" in data["artifacts"]
+    assert "dsm_visual_png" in data["artifacts"]
 
     req_id = data["request_id"]
     visual_filename = data["artifacts"]["relative_depth_visual_png"]["filename"]
     npy_filename = data["artifacts"]["raw_relative_depth_npy"]["filename"]
+    dsm_filename = data["artifacts"]["dsm_geotiff"]["filename"]
+    dsm_npy_filename = data["artifacts"]["dsm_npy"]["filename"]
 
     # Test downloading visual PNG
     art_response = test_client.get(f"/api/v1/artifacts/{req_id}/{visual_filename}")
@@ -64,6 +79,22 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     npy_response = test_client.get(f"/api/v1/artifacts/{req_id}/{npy_filename}")
     assert npy_response.status_code == 200
     assert len(npy_response.content) > 0
+
+    # Test downloading DSM GeoTIFF / TIFF
+    dsm_response = test_client.get(f"/api/v1/artifacts/{req_id}/{dsm_filename}")
+    assert dsm_response.status_code == 200
+    assert len(dsm_response.content) > 0
+
+    # Test downloading DSM NumPy array
+    dsm_npy_resp = test_client.get(f"/api/v1/artifacts/{req_id}/{dsm_npy_filename}")
+    assert dsm_npy_resp.status_code == 200
+    assert len(dsm_npy_resp.content) > 0
+
+    # Test HTML viewer endpoint
+    viewer_resp = test_client.get(f"/api/v1/artifacts/{req_id}")
+    assert viewer_resp.status_code == 200
+    assert "text/html" in viewer_resp.headers["content-type"]
+    assert "Local Metric DSM" in viewer_resp.text
 
 
 def test_api_process_with_gcp_calibration(test_client: TestClient, synthetic_jpeg_bytes):
@@ -84,6 +115,8 @@ def test_api_process_with_gcp_calibration(test_client: TestClient, synthetic_jpe
     assert response.status_code == 200
     data = response.json()
     assert data["metric_depth_available"]
+    assert data["dsm_available"]
+    assert data["dsm_type"] == "local_metric"
     assert data["state"] == "STATE_C"
 
 

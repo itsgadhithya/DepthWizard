@@ -72,4 +72,4 @@ class CalibrationResult(BaseModel):
     reference_count: int = 0
     is_provisional: bool = False
     reason: Optional[str] = None
-    details: Dict[str, Any] = Field(default_factory=dict)
+    details: Dict[str, Any] = Field(default_factory=dict, exclude=True)

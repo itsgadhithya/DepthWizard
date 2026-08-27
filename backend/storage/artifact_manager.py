@@ -186,15 +186,16 @@ class ArtifactManager:
 
     @classmethod
     def save_dsm(cls, request_id: str, dsm: DSMResult) -> Dict[str, ArtifactInfo]:
-        """Save Digital Surface Model as GeoTIFF and shaded relief PNGs."""
+        """Save Digital Surface Model as GeoTIFF raster, NumPy float32 array, and visualization PNGs."""
         req_dir = cls.get_request_dir(request_id)
         artifacts = {}
 
-        # 1. GeoTIFF
+        # 1. GeoTIFF / TIFF raster
         tif_path = req_dir / "dsm.tif"
         GeoTIFFExporter.save_dsm_geotiff(dsm, str(tif_path))
+        dsm_label = "Digital Surface Model (GeoTIFF)" if not dsm.is_local else "Local Metric Digital Surface Model (TIFF)"
         artifacts["dsm_geotiff"] = ArtifactInfo(
-            name="Digital Surface Model (GeoTIFF)",
+            name=dsm_label,
             filename=tif_path.name,
             artifact_type="dsm_tif",
             file_path=str(tif_path.resolve()),
@@ -204,13 +205,43 @@ class ArtifactManager:
             is_visualization=False,
         )
 
-        # 2. Hillshade PNG
+        # 2. Raw Float32 DSM NumPy array (in meters, preserving NoData)
+        npy_path = req_dir / "dsm_elevation_meters.npy"
+        np.save(npy_path, dsm.grid.astype(np.float32))
+        artifacts["dsm_npy"] = ArtifactInfo(
+            name="DSM Surface Elevation in Meters (NumPy)",
+            filename=npy_path.name,
+            artifact_type="dsm_npy",
+            file_path=str(npy_path.resolve()),
+            download_url=f"/api/v1/artifacts/{request_id}/{npy_path.name}",
+            size_bytes=npy_path.stat().st_size,
+            is_computational=True,
+            is_visualization=False,
+        )
+
+        # 3. Hillshade & Color Relief PNGs
         hill_path = req_dir / "dsm_hillshade.png"
         color_path = req_dir / "dsm_color_relief.png"
+        visual_path = req_dir / "dsm_visual.png"
         VisualizationExporter.export_dsm_visuals(
             dsm=dsm,
             hillshade_path=str(hill_path),
             colorized_path=str(color_path),
+        )
+
+        # Also write dsm_visual.png as primary visual
+        import shutil
+        shutil.copyfile(color_path, visual_path)
+
+        artifacts["dsm_visual_png"] = ArtifactInfo(
+            name="DSM Surface Colormap (Visual Only)",
+            filename=visual_path.name,
+            artifact_type="visual_png",
+            file_path=str(visual_path.resolve()),
+            download_url=f"/api/v1/artifacts/{request_id}/{visual_path.name}",
+            size_bytes=visual_path.stat().st_size,
+            is_computational=False,
+            is_visualization=True,
         )
 
         artifacts["dsm_hillshade_png"] = ArtifactInfo(
@@ -235,7 +266,7 @@ class ArtifactManager:
             is_visualization=True,
         )
 
-        # 3. DSM Provenance Metadata JSON
+        # 4. DSM Provenance Metadata JSON
         if dsm.metadata:
             meta_path = req_dir / "dsm_metadata.json"
             with open(meta_path, "w") as f:

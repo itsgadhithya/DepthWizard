@@ -78,7 +78,7 @@ class ImageMetadata(BaseModel):
     gps: Optional[GPSMetadata] = None
     exif: Optional[ExifMetadata] = None
     geotiff: Optional[GeoTIFFMetadata] = None
-    provenance: Dict[str, FieldProvenance] = Field(default_factory=dict)
+    provenance: Dict[str, FieldProvenance] = Field(default_factory=dict, exclude=True)
 
     def record_field(
         self,

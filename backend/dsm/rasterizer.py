@@ -24,18 +24,20 @@ class DSMRasterizer:
         nodata_value: float = settings.default_nodata_value,
         fill_voids: bool = True,
         method: Literal["max", "mean"] = "max",
+        is_local: Optional[bool] = None,
     ) -> DSMResult:
-        """Rasterize a georeferenced metric point cloud into a DSM elevation grid.
+        """Rasterize a metric 3D point cloud into a DSM elevation grid (Local Metric or Georeferenced Metric).
 
         Args:
-            point_cloud: Georeferenced PointCloud3D in a Projected CRS (Units: Meters).
+            point_cloud: Metric PointCloud3D in local camera frame or Projected CRS (Units: Meters).
             resolution_m: Ground sampling distance / grid resolution in meters per pixel.
             nodata_value: Sentinel value for missing/void elevation cells.
             fill_voids: Whether to interpolate internal void cells.
             method: 'max' for Digital Surface Model (highest surface), 'mean' for average surface.
+            is_local: Explicit local override. If None, auto-detected from point_cloud.crs.
 
         Returns:
-            DSMResult containing 2D float32 elevation array, CRS, Affine transform, and metadata.
+            DSMResult containing 2D float32 elevation array, CRS (if georeferenced), Affine transform, and metadata.
         """
         if not point_cloud.is_metric:
             raise ValueError(
@@ -43,17 +45,25 @@ class DSMRasterizer:
                 "Metric depth calibration must be performed first."
             )
 
-        if not point_cloud.crs:
-            raise ValueError(
-                "Point cloud lacks a Projected CRS. "
-                "Geospatial georeferencing is required for DSM generation."
-            )
-
         pts = point_cloud.points
         if pts is None or len(pts) == 0:
             raise ValueError("Cannot rasterize an empty point cloud.")
 
-        # Extract X (Easting), Y (Northing), Z (Elevation above datum)
+        # Determine local vs georeferenced
+        if is_local is None:
+            is_local = bool(
+                not point_cloud.crs
+                or point_cloud.coordinate_frame in [
+                    CoordinateFrame.CAMERA,
+                    CoordinateFrame.CAMERA_OPTICAL,
+                    CoordinateFrame.CAMERA_FRAME,
+                ]
+            )
+
+        dsm_type = "local_metric" if is_local else "georeferenced_metric"
+        dsm_crs = None if is_local else point_cloud.crs
+
+        # Extract X, Y, Z coordinates (all in meters)
         x = pts[:, 0].astype(np.float64)
         y = pts[:, 1].astype(np.float64)
         z_elevation = pts[:, 2].astype(np.float64)
@@ -166,11 +176,13 @@ class DSMRasterizer:
             max_y=north,
             min_z=min_elev,
             max_z=max_elev,
-            crs=point_cloud.crs,
+            crs=dsm_crs or "LOCAL",
         )
 
         metadata = DSMMetadata(
             generation_method="max_surface_elevation" if method == "max" else "mean_surface_elevation",
+            dsm_type=dsm_type,
+            is_local=is_local,
             void_filling_applied=voids_filled,
             source_points_count=int(len(x)),
             valid_cells_count=valid_count,
@@ -180,8 +192,8 @@ class DSMRasterizer:
             max_elevation_m=round(max_elev, 3),
             mean_elevation_m=round(mean_elev, 3),
             std_elevation_m=round(std_elev, 3),
-            horizontal_crs=point_cloud.crs,
-            vertical_datum="WGS84 Ellipsoidal Height / Projected Datum",
+            horizontal_crs=dsm_crs,
+            vertical_datum="Local Metric Camera Frame" if is_local else "WGS84 Ellipsoidal Height / Projected Datum",
             elevation_units="meters",
             resolution_m=resolution_m,
         )
@@ -190,7 +202,9 @@ class DSMRasterizer:
             grid=dsm_grid,
             width=grid_w,
             height=grid_h,
-            crs=point_cloud.crs,
+            crs=dsm_crs,
+            dsm_type=dsm_type,
+            is_local=is_local,
             transform=transform_list,
             bounds=bounds,
             resolution_m=resolution_m,

@@ -10,6 +10,7 @@ class CoordinateFrame(str, Enum):
     """Reference coordinate frame for 3D points."""
     CAMERA = "camera"  # Optical camera frame: +X right, +Y down, +Z forward
     CAMERA_OPTICAL = "camera"
+    CAMERA_FRAME = "camera"
     LOCAL_ENU = "local_enu"  # Local Tangential Plane: +X East, +Y North, +Z Up
     PROJECTED_CRS = "projected_crs"  # Map projected coordinates (e.g. UTM Easting, Northing, Elevation)
     GEOGRAPHIC = "geographic"  # Longitude, Latitude, Ellipsoidal Height

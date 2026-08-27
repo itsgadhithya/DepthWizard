@@ -170,12 +170,31 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             input_img = inp
             break
 
+    dsm_visual_img = None
+    for d in ["dsm_visual.png", "dsm_color_relief.png", "dsm_hillshade.png"]:
+        if (req_dir / d).exists():
+            dsm_visual_img = d
+            break
+
+    has_dsm_tif = (req_dir / "dsm.tif").exists()
+    has_dsm_npy = (req_dir / "dsm_elevation_meters.npy").exists()
+    has_metric_npy = (req_dir / "metric_depth_meters.npy").exists()
+    has_ply = (req_dir / "point_cloud.ply").exists()
+    has_web_json = (req_dir / "point_cloud_preview.json").exists()
+
     state = summary_data.get("state", "STATE_A")
+    dsm_type = summary_data.get("dsm_type") or ("georeferenced_metric" if state == "STATE_D" else ("local_metric" if (has_dsm_tif or state == "STATE_C") else None))
     model_name = summary_data.get("model_name", settings.default_model_name)
     device_used = summary_data.get("device_used", "cpu")
     total_time = summary_data.get("total_time_ms", 0.0)
     inference_time = summary_data.get("timings_ms", {}).get("depth_inference_ms", 0.0)
     artifacts_dict = summary_data.get("artifacts", {})
+
+    dsm_badge_html = ""
+    if dsm_type == "georeferenced_metric":
+        dsm_badge_html = '<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Georeferenced Metric DSM</span>'
+    elif dsm_type == "local_metric":
+        dsm_badge_html = '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Local Metric DSM</span>'
 
     # Generate interactive HTML Viewer
     html_content = f"""<!DOCTYPE html>
@@ -211,7 +230,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             align-items: center;
         }}
         .container {{
-            max-width: 1200px;
+            max-width: 1300px;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -254,7 +273,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         .badge-device {{ background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }}
         .viewer-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
             gap: 20px;
         }}
         .card {{
@@ -277,7 +296,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         }}
         .img-container {{
             width: 100%;
-            height: 480px;
+            height: 420px;
             background: #05070d;
             border-radius: 12px;
             overflow: hidden;
@@ -354,12 +373,13 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                 <h1>DepthWizard Interactive Viewer</h1>
                 <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
                     <span class="badge badge-state">{state}</span>
+                    {dsm_badge_html}
                     <span class="badge badge-device">{device_used.upper()}</span>
                     <span style="font-size: 0.8rem; color: var(--text-muted);">Request ID: <code>{request_id}</code></span>
                 </div>
             </div>
             <div style="display: flex; gap: 10px;">
-                <a href="/api/v1/artifacts/{request_id}?format=json" class="btn-download" style="padding: 8px 14px; font-size: 0.8rem;">View Raw JSON Manifest</a>
+                <a href="/api/v1/artifacts/{request_id}?format=json" class="btn-download" style="padding: 8px 14px; font-size: 0.8rem;">View Clean JSON Manifest</a>
                 <a href="/docs" class="btn-download" style="padding: 8px 14px; font-size: 0.8rem;">API Docs</a>
             </div>
         </div>
@@ -377,29 +397,44 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                 </div>
             </div>
 
-            <!-- DepthAnything V2 Output -->
+            <!-- Depth Map Output -->
             <div class="card">
                 <div class="card-title">
-                    <span>Relative Depth Map (Turbo Colormap)</span>
+                    <span>{'Metric Depth (Meters)' if state in ['STATE_C', 'STATE_D'] else 'Relative Depth Map'}</span>
                     <span style="font-size: 0.8rem; color: var(--text-muted);">{model_name}</span>
                 </div>
                 <div class="img-container">
                     {'<img src="/api/v1/artifacts/' + request_id + '/' + visual_img + '" alt="Depth Visualization">' if visual_img else '<span style="color: var(--text-muted);">No depth visualization</span>'}
                 </div>
             </div>
+
+            <!-- DSM Output Card (if available) -->
+            {f'''<div class="card">
+                <div class="card-title">
+                    <span>{"Georeferenced DSM" if dsm_type == "georeferenced_metric" else "Local Metric DSM"} (Meters)</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Surface Model</span>
+                </div>
+                <div class="img-container">
+                    <img src="/api/v1/artifacts/{request_id}/{dsm_visual_img}" alt="DSM Surface Visualization">
+                </div>
+            </div>''' if dsm_visual_img else ''}
         </div>
 
         <!-- Download & Telemetry Panel -->
         <div class="actions-panel">
             <div class="card-title">
-                <span>Download Artifacts</span>
+                <span>Download Generated Artifacts</span>
                 <span style="font-size: 0.8rem; color: var(--text-muted);">Click any button below to download the corresponding file</span>
             </div>
             <div class="downloads-grid">
-                {'<a href="/api/v1/artifacts/' + request_id + '/' + visual_img + '?download=true" class="btn-download">📥 Download Visual PNG</a>' if visual_img else ''}
-                <a href="/api/v1/artifacts/{request_id}/raw_relative_depth.npy?download=true" class="btn-download">📥 Download Raw Depth (.npy)</a>
-                <a href="/api/v1/artifacts/{request_id}/raw_relative_depth_32f.tif?download=true" class="btn-download">📥 Download 32-bit Float TIFF</a>
-                <a href="/api/v1/artifacts/{request_id}/point_cloud.ply?download=true" class="btn-download">📥 Download Point Cloud (.ply)</a>
+                {'<a href="/api/v1/artifacts/' + request_id + '/' + visual_img + '?download=true" class="btn-download">📥 Depth Colormap (.png)</a>' if visual_img else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/dsm.tif?download=true" class="btn-download">📥 DSM Raster (.tif)</a>' if has_dsm_tif else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/dsm_elevation_meters.npy?download=true" class="btn-download">📥 DSM Elevation Array (.npy)</a>' if has_dsm_npy else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/dsm_visual.png?download=true" class="btn-download">📥 DSM Visual Preview (.png)</a>' if dsm_visual_img else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/metric_depth_meters.npy?download=true" class="btn-download">📥 Metric Depth (.npy)</a>' if has_metric_npy else ''}
+                <a href="/api/v1/artifacts/{request_id}/raw_relative_depth.npy?download=true" class="btn-download">📥 Raw Relative Depth (.npy)</a>
+                {'<a href="/api/v1/artifacts/' + request_id + '/point_cloud.ply?download=true" class="btn-download">📥 3D Point Cloud (.ply)</a>' if has_ply else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/point_cloud_preview.json?download=true" class="btn-download">📥 3D JSON Preview (.json)</a>' if has_web_json else ''}
             </div>
 
             <div class="card-title" style="margin-top: 8px;">
@@ -411,8 +446,8 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                     <span class="stat-val">{model_name}</span>
                 </div>
                 <div class="stat-box">
-                    <span class="stat-label">Device Used</span>
-                    <span class="stat-val">{device_used}</span>
+                    <span class="stat-label">DSM Status</span>
+                    <span class="stat-val" style="font-size: 0.85rem;">{dsm_type or 'None'}</span>
                 </div>
                 <div class="stat-box">
                     <span class="stat-label">Inference Latency</span>

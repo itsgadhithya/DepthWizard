@@ -38,7 +38,12 @@ class GeoTIFFExporter:
         # Affine(a, b, c, d, e, f)
         affine_transform = Affine.from_gdal(t[0], t[1], t[2], t[3], t[4], t[5])
 
-        crs_obj = CRS.from_user_input(dsm.crs)
+        crs_obj = None
+        if dsm.crs and dsm.crs != "LOCAL" and not dsm.is_local:
+            try:
+                crs_obj = CRS.from_user_input(dsm.crs)
+            except Exception:
+                crs_obj = None
 
         profile: Dict[str, Any] = {
             "driver": "GTiff",
@@ -67,10 +72,12 @@ class GeoTIFFExporter:
             # Write standard geospatial provenance and elevation tags
             tags = {
                 "SOFTWARE": "DepthWizard Depth & Metric Geometry Engine",
+                "DSM_TYPE": dsm.dsm_type,
+                "IS_LOCAL": str(dsm.is_local),
                 "ELEVATION_UNITS": "meters",
                 "METRIC_CALIBRATED": "true",
-                "HORIZONTAL_CRS": str(dsm.crs),
-                "VERTICAL_DATUM": "WGS84 Ellipsoid / Projected Datum",
+                "HORIZONTAL_CRS": str(dsm.crs or "LOCAL"),
+                "VERTICAL_DATUM": "Local Metric Camera Frame" if dsm.is_local else "WGS84 Ellipsoid / Projected Datum",
                 "RESOLUTION_METERS": str(dsm.resolution_m),
                 "MIN_ELEVATION_M": str(dsm.min_elevation_m),
                 "MAX_ELEVATION_M": str(dsm.max_elevation_m),

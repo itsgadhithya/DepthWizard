@@ -22,7 +22,7 @@ class ArtifactInfo(BaseModel):
     name: str
     filename: str
     artifact_type: str  # e.g., "raw_depth_npy", "visual_png", "point_cloud_ply", "dsm_tif"
-    file_path: str
+    file_path: Optional[str] = Field(default=None, exclude=True)  # Internal filesystem path, excluded from public API JSON
     download_url: str
     size_bytes: int = 0
     is_computational: bool = False
@@ -41,6 +41,7 @@ class ProcessingSummary(BaseModel):
     metric_depth_available: bool = False
     georeferencing_available: bool = False
     dsm_available: bool = False
+    dsm_type: Optional[str] = Field(default=None, description="DSM status type: 'georeferenced_metric', 'local_metric', or None")
     validation_available: bool = False
     model_name: str = ""
     device_used: str = ""

@@ -278,17 +278,20 @@ class SingleImagePipeline:
         # ---------------------------------------------------------
         # STAGE 7: Geospatial Georeferencing & DSM (State D)
         # ---------------------------------------------------------
+        # STAGE 7: Geospatial Georeferencing & DSM (State D / Local Metric State C)
+        # ---------------------------------------------------------
         t0 = time.perf_counter()
         dsm_result: Optional[DSMResult] = None
+        dsm_type: Optional[str] = None
 
         if current_state == PipelineState.STATE_C and point_cloud_metric is not None:
             can_georeference = False
 
-            # Check if GeoTIFF CRS is present or camera GPS is present
-            if metadata.has_geotiff and metadata.geotiff and metadata.geotiff.crs:
+            # Check if GeoTIFF CRS + transform is present, or if camera has position
+            if metadata.has_geotiff and metadata.geotiff and metadata.geotiff.crs and metadata.geotiff.transform:
                 target_crs = target_crs or metadata.geotiff.crs
                 can_georeference = True
-            elif metadata.has_gps and metadata.gps and metadata.gps.latitude is not None and metadata.gps.longitude is not None:
+            elif camera and camera.has_position:
                 can_georeference = True
 
             if can_georeference:
@@ -302,23 +305,49 @@ class SingleImagePipeline:
                     geo_pc_arts = ArtifactManager.save_point_cloud(req_id, geo_point_cloud)
                     all_artifacts.update(geo_pc_arts)
 
-                    # Rasterize DSM
+                    # Rasterize Georeferenced DSM
                     dsm_result = DSMRasterizer.rasterize(
                         point_cloud=geo_point_cloud,
                         resolution_m=dsm_resolution_m,
+                        is_local=False,
                     )
+                    dsm_type = "georeferenced_metric"
                     dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result)
                     all_artifacts.update(dsm_arts)
 
                     current_state = PipelineState.STATE_D
                     messages.append(
-                        f"Georeferenced DSM created in '{dsm_result.crs}' with resolution {dsm_result.resolution_m}m/px "
+                        f"Georeferenced Metric DSM created in '{dsm_result.crs}' with resolution {dsm_result.resolution_m}m/px "
                         f"({dsm_result.width}x{dsm_result.height} grid, coverage: {dsm_result.valid_coverage_percent}%)."
                     )
                 except Exception as e:
-                    warnings.append(f"Geospatial transform / DSM generation failed: {str(e)}")
+                    warnings.append(f"Geospatial transform / Georeferenced DSM failed: {str(e)}. Generating Local Metric DSM instead.")
+                    dsm_result = DSMRasterizer.rasterize(
+                        point_cloud=point_cloud_metric,
+                        resolution_m=dsm_resolution_m,
+                        is_local=True,
+                    )
+                    dsm_type = "local_metric"
+                    dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result)
+                    all_artifacts.update(dsm_arts)
+                    messages.append(
+                        f"Local Metric DSM generated in camera frame with resolution {dsm_result.resolution_m}m/px "
+                        f"({dsm_result.width}x{dsm_result.height} grid, coverage: {dsm_result.valid_coverage_percent}%)."
+                    )
             else:
-                warnings.append("Georeferencing unavailable: Image lacks both GeoTIFF tags and GPS camera position.")
+                # Generate Local Metric DSM when georeferencing is not available
+                dsm_result = DSMRasterizer.rasterize(
+                    point_cloud=point_cloud_metric,
+                    resolution_m=dsm_resolution_m,
+                    is_local=True,
+                )
+                dsm_type = "local_metric"
+                dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result)
+                all_artifacts.update(dsm_arts)
+                messages.append(
+                    f"Local Metric DSM generated in camera coordinate frame with resolution {dsm_result.resolution_m}m/px "
+                    f"({dsm_result.width}x{dsm_result.height} grid, coverage: {dsm_result.valid_coverage_percent}%)."
+                )
 
         timings["geospatial_and_dsm_ms"] = round((time.perf_counter() - t0) * 1000.0, 2)
 
@@ -383,6 +412,7 @@ class SingleImagePipeline:
             metric_depth_available=(metric_depth is not None),
             georeferencing_available=georeferencing_available,
             dsm_available=(dsm_result is not None),
+            dsm_type=dsm_type,
             validation_available=(validation_report is not None),
             model_name=relative_depth.model_name,
             device_used=relative_depth.device,
