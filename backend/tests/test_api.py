@@ -105,6 +105,14 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     assert "text/html" in viewer_resp.headers["content-type"]
     assert "Local Metric DSM" in viewer_resp.text
     assert "THREE.GLTFLoader" in viewer_resp.text
+    assert "elevation-legend" in viewer_resp.text
+
+    # Test dedicated standalone 3D viewer endpoint
+    standalone_viewer_resp = test_client.get(f"/api/v1/viewer/{req_id}")
+    assert standalone_viewer_resp.status_code == 200
+    assert "text/html" in standalone_viewer_resp.headers["content-type"]
+    assert "Interactive 3D Terrain Model" in standalone_viewer_resp.text
+
 
 
 def test_api_process_with_gcp_calibration(test_client: TestClient, synthetic_jpeg_bytes):

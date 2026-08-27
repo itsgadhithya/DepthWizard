@@ -20,14 +20,14 @@ class DSMMeshGenerator:
         cls,
         dsm: DSMResult,
         image_rgb: Optional[np.ndarray] = None,
-        max_grid_size: int = 512,
+        max_grid_size: int = 384,
         max_elevation_step_m: float = 200.0,
     ) -> Mesh3D:
         """Create a 3D triangle surface mesh directly from a DSM elevation grid.
 
         Args:
             dsm: DSMResult with 2D float32 elevation grid and spatial bounds.
-            image_rgb: Optional (H, W, 3) uint8 image for photographic texturing.
+            image_rgb: Optional (H, W, 3) uint8 image for texture reference.
             max_grid_size: Maximum resolution along longest dimension for rendering performance.
             max_elevation_step_m: Maximum elevation discontinuity across a single triangle face.
 
@@ -46,7 +46,7 @@ class DSMMeshGenerator:
         # Grid coordinate generation
         # Determine 2D (X, Y) positions in meters
         if dsm.is_local or not dsm.transform:
-            # Local metric camera frame: Top-left origin or center-centered coordinates in meters
+            # Local metric camera frame: Center-centered coordinates in meters
             res = dsm.resolution_m * step
             x_coords = (np.arange(w_sub) - w_sub / 2.0) * res
             y_coords = (h_sub / 2.0 - np.arange(h_sub)) * res
@@ -62,7 +62,7 @@ class DSMMeshGenerator:
 
         zz = sub_grid.astype(np.float32)
 
-        # Validity mask (exclude NoData cells)
+        # Validity mask (exclude NoData cells and non-finite values)
         valid_mask = (zz > -9000.0) & (zz != nodata) & np.isfinite(zz)
 
         if not np.any(valid_mask):
@@ -98,20 +98,12 @@ class DSMMeshGenerator:
         uv_v = valid_indices[:, 0] / max(1, h_sub - 1)
         uvs = np.stack([uv_u, uv_v], axis=-1).astype(np.float32)
 
-        # Vertex colors
-        if image_rgb is not None and image_rgb.ndim == 3:
-            # Sample image colors
-            img_h, img_w = image_rgb.shape[:2]
-            img_rows = np.clip((valid_indices[:, 0] * step * img_h / h_orig).astype(int), 0, img_h - 1)
-            img_cols = np.clip((valid_indices[:, 1] * step * img_w / w_orig).astype(int), 0, img_w - 1)
-            colors = image_rgb[img_rows, img_cols].astype(np.uint8)
-        else:
-            # Terrain elevation colormap (cool blue to green to earthy brown/snow)
-            z_min = float(np.min(v_z))
-            z_max = float(np.max(v_z))
-            z_range = max(1e-4, z_max - z_min)
-            z_norm = np.clip((v_z - z_min) / z_range, 0.0, 1.0)
-            colors = cls._elevation_to_rgb(z_norm)
+        # Continuous Scientific Terrain Elevation Colors (Low: Green -> Mid: Yellow/Ochre -> High: Brown -> Summit: White)
+        z_min = float(np.min(v_z))
+        z_max = float(np.max(v_z))
+        z_range = max(1e-4, z_max - z_min)
+        z_norm = np.clip((v_z - z_min) / z_range, 0.0, 1.0)
+        colors = cls._elevation_to_rgb(z_norm)
 
         # Build triangular faces (connecting neighbouring valid grid cells)
         faces_list = []
@@ -139,7 +131,7 @@ class DSMMeshGenerator:
         else:
             faces = np.zeros((0, 3), dtype=np.uint32)
 
-        # Compute surface normal vectors
+        # Compute surface normal vectors for high-definition directional terrain lighting
         normals = cls._compute_vertex_normals(vertices, faces)
 
         mesh = Mesh3D(
@@ -186,16 +178,25 @@ class DSMMeshGenerator:
 
     @classmethod
     def _elevation_to_rgb(cls, z_norm: np.ndarray) -> np.ndarray:
-        """Map normalized elevation [0, 1] to natural topographical terrain colors."""
-        # Colormap stops: [Blue water/deep, Emerald valley, Ochre plateau, Mountain rock, Snow summit]
+        """Map normalized elevation [0, 1] to natural continuous topographical terrain colors.
+
+        Color Palette:
+            0.00 -> Deep valley / forest green
+            0.18 -> Meadow emerald green
+            0.40 -> Warm golden ochre / yellow plateau
+            0.65 -> Terracotta / mountain ridge brown
+            0.85 -> Alpine slate rock
+            1.00 -> Mountain summit / snow white
+        """
         colors = np.zeros((len(z_norm), 3), dtype=np.uint8)
 
         stops = [
-            (0.0, np.array([46, 117, 182])),   # Blue water
-            (0.2, np.array([54, 153, 94])),    # Lush green
-            (0.5, np.array([179, 168, 70])),   # Earthy yellowish-brown
-            (0.8, np.array([139, 105, 74])),   # Mountain rock
-            (1.0, np.array([245, 248, 250])),  # Snow white
+            (0.00, np.array([27, 67, 50])),    # Deep Forest Green (#1b4332)
+            (0.18, np.array([64, 145, 108])),  # Meadow Emerald (#40916c)
+            (0.40, np.array([212, 163, 115])), # Warm Golden Ochre (#d4a373)
+            (0.65, np.array([156, 102, 68])),  # Mountain Ridge Brown (#9c6644)
+            (0.85, np.array([120, 130, 140])), # Alpine Slate Rock (#78828c)
+            (1.00, np.array([248, 250, 252])), # Summit Snow White (#f8fafc)
         ]
 
         for i in range(len(stops) - 1):
