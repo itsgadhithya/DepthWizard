@@ -65,6 +65,15 @@ class DepthColorMapper:
         return rgb
 
     @classmethod
+    def to_png_bytes(cls, rgb_array: np.ndarray) -> bytes:
+        """Convert RGB uint8 array to PNG bytes in memory."""
+        import io
+        img = Image.fromarray(rgb_array)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        return buf.getvalue()
+
+    @classmethod
     def save_image(
         cls,
         rgb_array: np.ndarray,
@@ -74,3 +83,4 @@ class DepthColorMapper:
         img = Image.fromarray(rgb_array)
         img.save(file_path, format="PNG", optimize=True)
         return file_path
+

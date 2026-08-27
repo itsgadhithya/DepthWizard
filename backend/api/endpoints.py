@@ -157,7 +157,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         except Exception:
             pass
 
-    # Find visual image and input image
+    # Check for 3D model, DSM, visual image, and input image
     visual_img = None
     for v in ["metric_depth_visual.png", "relative_depth_visual.png"]:
         if (req_dir / v).exists():
@@ -176,11 +176,32 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             dsm_visual_img = d
             break
 
+    has_dsm_glb = (req_dir / "dsm_model.glb").exists()
+    has_dsm_obj = (req_dir / "dsm_model.obj").exists()
     has_dsm_tif = (req_dir / "dsm.tif").exists()
     has_dsm_npy = (req_dir / "dsm_elevation_meters.npy").exists()
     has_metric_npy = (req_dir / "metric_depth_meters.npy").exists()
     has_ply = (req_dir / "point_cloud.ply").exists()
     has_web_json = (req_dir / "point_cloud_preview.json").exists()
+
+    # Read DSM and Mesh metadata if available
+    mesh_meta = {}
+    dsm_meta_file = req_dir / "dsm_metadata.json"
+    if dsm_meta_file.exists():
+        try:
+            with open(dsm_meta_file, "r") as f:
+                dsm_meta_raw = json.load(f)
+                mesh_meta = dsm_meta_raw.get("mesh", {})
+        except Exception:
+            mesh_meta = {}
+
+    mesh_w = mesh_meta.get("width_m", 0.0)
+    mesh_l = mesh_meta.get("length_m", 0.0)
+    mesh_zmin = mesh_meta.get("height_min_m", 0.0)
+    mesh_zmax = mesh_meta.get("height_max_m", 0.0)
+    mesh_zrange = mesh_meta.get("height_range_m", 0.0)
+    mesh_verts = mesh_meta.get("vertex_count", 0)
+    mesh_tris = mesh_meta.get("triangle_count", 0)
 
     state = summary_data.get("state", "STATE_A")
     dsm_type = summary_data.get("dsm_type") or ("georeferenced_metric" if state == "STATE_D" else ("local_metric" if (has_dsm_tif or state == "STATE_C") else None))
@@ -202,19 +223,23 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DepthWizard Viewer — {request_id}</title>
+    <title>DepthWizard 3D DSM Viewer — {request_id}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Three.js + OrbitControls + GLTFLoader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <style>
         :root {{
-            --bg-primary: #0b0f19;
-            --bg-card: rgba(18, 24, 38, 0.85);
+            --bg-primary: #070a13;
+            --bg-card: rgba(15, 23, 42, 0.85);
             --border-color: rgba(255, 255, 255, 0.08);
             --accent: #3b82f6;
             --accent-glow: rgba(59, 130, 246, 0.35);
             --accent-green: #10b981;
-            --text-primary: #f1f5f9;
+            --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
         }}
@@ -230,7 +255,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             align-items: center;
         }}
         .container {{
-            max-width: 1300px;
+            max-width: 1400px;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -252,7 +277,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         .title-group h1 {{
             font-size: 1.4rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #60a5fa, #a855f7);
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
@@ -271,6 +296,126 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         }}
         .badge-state {{ background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }}
         .badge-device {{ background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }}
+        
+        /* 3D Viewport Hero Section */
+        .viewport-section {{
+            background: var(--bg-card);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+        }}
+        .viewport-header {{
+            padding: 16px 20px;
+            background: rgba(10, 15, 30, 0.9);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }}
+        .viewport-title {{
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #38bdf8;
+        }}
+        .viewport-controls {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }}
+        .control-group {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 0.8rem;
+        }}
+        .control-btn {{
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .control-btn:hover {{
+            background: var(--accent);
+            border-color: var(--accent);
+        }}
+        .control-btn.active {{
+            background: #2563eb;
+            border-color: #60a5fa;
+        }}
+        #viewport-3d {{
+            width: 100%;
+            height: 600px;
+            background: radial-gradient(circle at center, #111827 0%, #030712 100%);
+            position: relative;
+            cursor: grab;
+        }}
+        #viewport-3d:active {{ cursor: grabbing; }}
+        
+        /* 3D Telemetry Overlay HUD */
+        .hud-overlay {{
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(8, 14, 28, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }}
+        .hud-row {{
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+        }}
+        .hud-label {{ color: var(--text-muted); }}
+        .hud-val {{ color: #38bdf8; font-weight: 600; }}
+        
+        /* Instructions Pill */
+        .hud-instructions {{
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 9999px;
+            padding: 6px 16px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            pointer-events: none;
+            backdrop-filter: blur(6px);
+            z-index: 10;
+        }}
+
         .viewer-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
@@ -296,7 +441,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         }}
         .img-container {{
             width: 100%;
-            height: 420px;
+            height: 380px;
             background: #05070d;
             border-radius: 12px;
             overflow: hidden;
@@ -347,6 +492,11 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             box-shadow: 0 0 16px var(--accent-glow);
             transform: translateY(-1px);
         }}
+        .btn-primary {{
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            border-color: #3b82f6;
+            font-weight: 600;
+        }}
         .stats-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -363,6 +513,28 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         }}
         .stat-label {{ font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }}
         .stat-val {{ font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 600; color: #38bdf8; }}
+        #loading-spinner {{
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            z-index: 20;
+        }}
+        .spinner {{
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }}
+        @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
     </style>
 </head>
 <body>
@@ -370,7 +542,7 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         <!-- Header -->
         <div class="header">
             <div class="title-group">
-                <h1>DepthWizard Interactive Viewer</h1>
+                <h1>DepthWizard 3D DSM Interactive Viewer</h1>
                 <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
                     <span class="badge badge-state">{state}</span>
                     {dsm_badge_html}
@@ -384,7 +556,56 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             </div>
         </div>
 
-        <!-- Viewer Cards -->
+        <!-- 3D WebGL DSM Viewport -->
+        <div class="viewport-section">
+            <div class="viewport-header">
+                <div class="viewport-title">
+                    <span>🏔️ Interactive 3D Digital Surface Model</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(Physical Metric Scale: 1 unit = 1 metre)</span>
+                </div>
+                <div class="viewport-controls">
+                    <!-- Vertical Exaggeration Slider -->
+                    <div class="control-group">
+                        <label for="exaggeration-slider" style="color: var(--text-secondary); cursor: pointer;">Exaggeration:</label>
+                        <input type="range" id="exaggeration-slider" min="0.2" max="4.0" step="0.1" value="1.0" style="width: 90px; cursor: pointer;">
+                        <span id="exaggeration-val" style="font-family: 'JetBrains Mono'; color: #38bdf8; min-width: 32px;">1.0x</span>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <button class="control-btn" id="btn-fit-view" title="Auto-Frame Model">🎯 Fit View</button>
+                    <button class="control-btn" id="btn-top-view" title="Top-Down Overhead View">🧭 Top View</button>
+                    <button class="control-btn" id="btn-wireframe" title="Toggle Wireframe Mesh">📐 Wireframe</button>
+                    <button class="control-btn" id="btn-autorotate" title="Toggle Auto-Rotation">🔄 Auto-Rotate</button>
+                </div>
+            </div>
+
+            <!-- Viewport Canvas Container -->
+            <div id="viewport-3d">
+                <div id="loading-spinner">
+                    <div class="spinner"></div>
+                    <span>Loading 3D DSM Surface Mesh...</span>
+                </div>
+
+                <!-- Live Telemetry HUD -->
+                <div class="hud-overlay" id="hud-panel">
+                    <div class="hud-row"><span class="hud-label">Model:</span><span class="hud-val">DSM 3D Surface</span></div>
+                    <div class="hud-row"><span class="hud-label">Type:</span><span class="hud-val">{dsm_type or 'Local Metric'}</span></div>
+                    <div class="hud-row"><span class="hud-label">Units:</span><span class="hud-val">metres</span></div>
+                    <div class="hud-row"><span class="hud-label">Width (X):</span><span class="hud-val" id="hud-w">{mesh_w:.1f} m</span></div>
+                    <div class="hud-row"><span class="hud-label">Length (Y):</span><span class="hud-val" id="hud-l">{mesh_l:.1f} m</span></div>
+                    <div class="hud-row"><span class="hud-label">Height (Z):</span><span class="hud-val" id="hud-z">{mesh_zrange:.1f} m</span></div>
+                    <div class="hud-row"><span class="hud-label">Triangles:</span><span class="hud-val" id="hud-tris">{mesh_tris:,}</span></div>
+                    <div class="hud-row"><span class="hud-label">Exaggeration:</span><span class="hud-val" id="hud-exag">1.0x</span></div>
+                </div>
+
+                <!-- Navigation Guide -->
+                <div class="hud-instructions">
+                    🖱️ Left Click: Orbit / Rotate &nbsp;|&nbsp; Right Click: Pan &nbsp;|&nbsp; Scroll: Zoom &nbsp;|&nbsp; Double Click: Focus
+                </div>
+            </div>
+        </div>
+
+        <!-- 2D Previews Grid -->
         <div class="viewer-grid">
             <!-- Original Input Image -->
             <div class="card">
@@ -408,11 +629,11 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
                 </div>
             </div>
 
-            <!-- DSM Output Card (if available) -->
+            <!-- DSM 2D Visualization Card -->
             {f'''<div class="card">
                 <div class="card-title">
-                    <span>{"Georeferenced DSM" if dsm_type == "georeferenced_metric" else "Local Metric DSM"} (Meters)</span>
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">Surface Model</span>
+                    <span>{"Georeferenced DSM" if dsm_type == "georeferenced_metric" else "Local Metric DSM"} (Relief Image)</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">DSM Visualization (2D PNG)</span>
                 </div>
                 <div class="img-container">
                     <img src="/api/v1/artifacts/{request_id}/{dsm_visual_img}" alt="DSM Surface Visualization">
@@ -423,26 +644,26 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
         <!-- Download & Telemetry Panel -->
         <div class="actions-panel">
             <div class="card-title">
-                <span>Download Generated Artifacts</span>
+                <span>Download Generated 3D & Geospatial Artifacts</span>
                 <span style="font-size: 0.8rem; color: var(--text-muted);">Click any button below to download the corresponding file</span>
             </div>
             <div class="downloads-grid">
-                {'<a href="/api/v1/artifacts/' + request_id + '/' + visual_img + '?download=true" class="btn-download">📥 Depth Colormap (.png)</a>' if visual_img else ''}
-                {'<a href="/api/v1/artifacts/' + request_id + '/dsm.tif?download=true" class="btn-download">📥 DSM Raster (.tif)</a>' if has_dsm_tif else ''}
-                {'<a href="/api/v1/artifacts/' + request_id + '/dsm_elevation_meters.npy?download=true" class="btn-download">📥 DSM Elevation Array (.npy)</a>' if has_dsm_npy else ''}
-                {'<a href="/api/v1/artifacts/' + request_id + '/dsm_visual.png?download=true" class="btn-download">📥 DSM Visual Preview (.png)</a>' if dsm_visual_img else ''}
-                {'<a href="/api/v1/artifacts/' + request_id + '/metric_depth_meters.npy?download=true" class="btn-download">📥 Metric Depth (.npy)</a>' if has_metric_npy else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/dsm_model.glb?download=true" class="btn-download btn-primary">📦 Download 3D DSM Model (.glb)</a>' if has_dsm_glb else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/dsm_model.obj?download=true" class="btn-download">🏛️ Download 3D Mesh (.obj)</a>' if has_dsm_obj else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/dsm.tif?download=true" class="btn-download">🗺️ Download DSM Raster (.tif)</a>' if has_dsm_tif else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/dsm_elevation_meters.npy?download=true" class="btn-download">🔢 Download DSM Array (.npy)</a>' if has_dsm_npy else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/dsm_visual.png?download=true" class="btn-download">🖼️ Download DSM Visual (.png)</a>' if dsm_visual_img else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/metric_depth_meters.npy?download=true" class="btn-download">📥 Metric Depth Array (.npy)</a>' if has_metric_npy else ''}
+                {'<a href="/api/v1/artifacts/' + request_id + '/point_cloud.ply?download=true" class="btn-download">☁️ 3D Point Cloud (.ply)</a>' if has_ply else ''}
                 <a href="/api/v1/artifacts/{request_id}/raw_relative_depth.npy?download=true" class="btn-download">📥 Raw Relative Depth (.npy)</a>
-                {'<a href="/api/v1/artifacts/' + request_id + '/point_cloud.ply?download=true" class="btn-download">📥 3D Point Cloud (.ply)</a>' if has_ply else ''}
-                {'<a href="/api/v1/artifacts/' + request_id + '/point_cloud_preview.json?download=true" class="btn-download">📥 3D JSON Preview (.json)</a>' if has_web_json else ''}
             </div>
 
             <div class="card-title" style="margin-top: 8px;">
-                <span>Pipeline Telemetry & Diagnostics</span>
+                <span>Pipeline Diagnostics & Model Parameters</span>
             </div>
             <div class="stats-grid">
                 <div class="stat-box">
-                    <span class="stat-label">Model Name</span>
+                    <span class="stat-label">Model Architecture</span>
                     <span class="stat-val">{model_name}</span>
                 </div>
                 <div class="stat-box">
@@ -460,6 +681,223 @@ async def list_artifacts(request_id: str, format: Optional[str] = None):
             </div>
         </div>
     </div>
+
+    <!-- Three.js 3D Viewport Script -->
+    <script>
+        const container = document.getElementById('viewport-3d');
+        const spinner = document.getElementById('loading-spinner');
+        const glbUrl = '/api/v1/artifacts/{request_id}/dsm_model.glb';
+
+        let scene, camera, renderer, controls;
+        let dsmMesh = null;
+        let dsmGroup = null;
+        let modelCenter = new THREE.Vector3();
+        let modelSize = new THREE.Vector3();
+        let autoRotate = false;
+        let wireframeMode = false;
+        let defaultCameraPos = new THREE.Vector3();
+        let defaultTarget = new THREE.Vector3();
+
+        function init() {{
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // 1. Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0f1d);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 50000);
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: true, powerPreference: "high-performance" }});
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.1;
+            container.appendChild(renderer.domElement);
+
+            // 4. OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.screenSpacePanning = true;
+            controls.maxPolarAngle = Math.PI / 2 + 0.1; // Allow slight under-angle
+            controls.minDistance = 0.1;
+            controls.maxDistance = 20000;
+
+            // 5. Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
+            sunLight.position.set(200, 400, 300);
+            scene.add(sunLight);
+
+            const fillLight = new THREE.DirectionalLight(0x90b0ff, 0.4);
+            fillLight.position.set(-200, -100, -200);
+            scene.add(fillLight);
+
+            // Grid helper at base
+            dsmGroup = new THREE.Group();
+            scene.add(dsmGroup);
+
+            // Resize handler
+            window.addEventListener('resize', onWindowResize);
+
+            // Load Model
+            loadGLB();
+
+            // Setup UI Controls
+            setupControls();
+
+            // Render loop
+            animate();
+        }}
+
+        function loadGLB() {{
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                glbUrl,
+                function (gltf) {{
+                    spinner.style.display = 'none';
+                    dsmMesh = gltf.scene;
+
+                    // Compute Bounding Box & Center
+                    const box = new THREE.Box3().setFromObject(dsmMesh);
+                    box.getSize(modelSize);
+                    box.getCenter(modelCenter);
+
+                    // Add to group
+                    dsmGroup.add(dsmMesh);
+
+                    // Update HUD telemetry with actual calculated dimensions
+                    document.getElementById('hud-w').textContent = modelSize.x.toFixed(1) + ' m';
+                    document.getElementById('hud-l').textContent = modelSize.y.toFixed(1) + ' m';
+                    document.getElementById('hud-z').textContent = modelSize.z.toFixed(1) + ' m';
+
+                    // Automatic Framing Calculation
+                    frameModel(box);
+                }},
+                undefined,
+                function (error) {{
+                    console.error('Error loading GLB:', error);
+                    spinner.innerHTML = '<span style="color:#ef4444;">⚠️ 3D GLB model loading error</span>';
+                }}
+            );
+        }}
+
+        function frameModel(box) {{
+            const size = new THREE.Vector3();
+            const center = new THREE.Vector3();
+            box.getSize(size);
+            box.getCenter(center);
+
+            const maxDim = Math.max(size.x, size.y, size.z, 1.0);
+            const fov = camera.fov * (Math.PI / 180);
+            const cameraDistance = (maxDim / 2) / Math.tan(fov / 2) * 1.35;
+
+            // Oblique 45-degree elevated perspective
+            defaultCameraPos.set(
+                center.x + cameraDistance * 0.65,
+                center.y + cameraDistance * 0.75,
+                center.z + cameraDistance * 0.65
+            );
+            defaultTarget.copy(center);
+
+            camera.position.copy(defaultCameraPos);
+            camera.near = Math.max(0.01, maxDim / 1000);
+            camera.far = maxDim * 100;
+            camera.updateProjectionMatrix();
+
+            controls.target.copy(center);
+            controls.update();
+        }}
+
+        function setupControls() {{
+            // Vertical Exaggeration Slider
+            const slider = document.getElementById('exaggeration-slider');
+            const exagVal = document.getElementById('exaggeration-val');
+            const hudExag = document.getElementById('hud-exag');
+
+            slider.addEventListener('input', function (e) {{
+                const factor = parseFloat(e.target.value);
+                exagVal.textContent = factor.toFixed(1) + 'x';
+                hudExag.textContent = factor.toFixed(1) + 'x';
+
+                if (dsmMesh) {{
+                    // Scale elevation (Z axis)
+                    dsmMesh.scale.set(1.0, 1.0, factor);
+                }}
+            }});
+
+            // Fit View
+            document.getElementById('btn-fit-view').addEventListener('click', function () {{
+                if (dsmMesh) {{
+                    const box = new THREE.Box3().setFromObject(dsmMesh);
+                    frameModel(box);
+                }}
+            }});
+
+            // Top View
+            document.getElementById('btn-top-view').addEventListener('click', function () {{
+                if (dsmMesh) {{
+                    const box = new THREE.Box3().setFromObject(dsmMesh);
+                    const center = new THREE.Vector3();
+                    const size = new THREE.Vector3();
+                    box.getCenter(center);
+                    box.getSize(size);
+                    const maxDim = Math.max(size.x, size.y);
+                    const fov = camera.fov * (Math.PI / 180);
+                    const dist = (maxDim / 2) / Math.tan(fov / 2) * 1.3;
+
+                    camera.position.set(center.x, center.y + dist, center.z);
+                    controls.target.copy(center);
+                    controls.update();
+                }}
+            }});
+
+            // Wireframe
+            const btnWireframe = document.getElementById('btn-wireframe');
+            btnWireframe.addEventListener('click', function () {{
+                wireframeMode = !wireframeMode;
+                btnWireframe.classList.toggle('active', wireframeMode);
+                if (dsmMesh) {{
+                    dsmMesh.traverse(function (child) {{
+                        if (child.isMesh && child.material) {{
+                            child.material.wireframe = wireframeMode;
+                        }}
+                    }});
+                }}
+            }});
+
+            // Auto-Rotate
+            const btnRotate = document.getElementById('btn-autorotate');
+            btnRotate.addEventListener('click', function () {{
+                autoRotate = !autoRotate;
+                btnRotate.classList.toggle('active', autoRotate);
+                controls.autoRotate = autoRotate;
+                controls.autoRotateSpeed = 2.0;
+            }});
+        }}
+
+        function onWindowResize() {{
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }}
+
+        function animate() {{
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }}
+
+        // Run on load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>"""
     from fastapi.responses import HTMLResponse
@@ -482,6 +920,9 @@ async def get_artifact(request_id: str, filename: str, download: bool = False):
         ".jpeg": "image/jpeg",
         ".tif": "image/tiff",
         ".tiff": "image/tiff",
+        ".glb": "model/gltf-binary",
+        ".gltf": "model/gltf+json",
+        ".obj": "text/plain",
         ".npy": "application/octet-stream",
         ".ply": "application/octet-stream",
         ".json": "application/json",

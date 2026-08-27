@@ -312,7 +312,7 @@ class SingleImagePipeline:
                         is_local=False,
                     )
                     dsm_type = "georeferenced_metric"
-                    dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result)
+                    dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result, image_rgb=image_rgb)
                     all_artifacts.update(dsm_arts)
 
                     current_state = PipelineState.STATE_D
@@ -328,7 +328,7 @@ class SingleImagePipeline:
                         is_local=True,
                     )
                     dsm_type = "local_metric"
-                    dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result)
+                    dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result, image_rgb=image_rgb)
                     all_artifacts.update(dsm_arts)
                     messages.append(
                         f"Local Metric DSM generated in camera frame with resolution {dsm_result.resolution_m}m/px "
@@ -342,7 +342,7 @@ class SingleImagePipeline:
                     is_local=True,
                 )
                 dsm_type = "local_metric"
-                dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result)
+                dsm_arts = ArtifactManager.save_dsm(req_id, dsm_result, image_rgb=image_rgb)
                 all_artifacts.update(dsm_arts)
                 messages.append(
                     f"Local Metric DSM generated in camera coordinate frame with resolution {dsm_result.resolution_m}m/px "

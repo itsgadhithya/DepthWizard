@@ -43,7 +43,12 @@ class RelativeDepthMap(BaseModel):
     representation: str = "relative_depth"  # "relative_depth" or "relative_disparity"
     is_metric: bool = False
     units: str = "dimensionless"
+    visual_bytes: Optional[bytes] = None
     metadata: Optional[DepthMetadata] = None
+
+    @property
+    def depth_map(self) -> np.ndarray:
+        return self.array
 
 
 class MetricDepthMap(BaseModel):
@@ -65,4 +70,10 @@ class MetricDepthMap(BaseModel):
     is_provisional: bool = False
     units: str = "meters"
     valid_mask: Optional[np.ndarray] = None
+    visual_bytes: Optional[bytes] = None
     metadata: Optional[DepthMetadata] = None
+
+    @property
+    def depth_meters(self) -> np.ndarray:
+        return self.array
+

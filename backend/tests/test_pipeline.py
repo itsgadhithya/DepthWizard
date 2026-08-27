@@ -45,6 +45,7 @@ def test_pipeline_plain_image_provisional_fallback(synthetic_jpeg_bytes):
     assert "point_cloud_ply" in summary.artifacts
     assert "metric_depth_npy" in summary.artifacts
     assert "dsm_geotiff" in summary.artifacts
+    assert "dsm_model_glb" in summary.artifacts
     assert "dsm_npy" in summary.artifacts
     assert "dsm_visual_png" in summary.artifacts
 
@@ -70,6 +71,7 @@ def test_pipeline_state_c_metric_calibration(synthetic_jpeg_bytes):
     assert summary.state == PipelineState.STATE_C
     assert "metric_depth_npy" in summary.artifacts
     assert "dsm_geotiff" in summary.artifacts
+    assert "dsm_model_glb" in summary.artifacts
     assert summary.calibration is not None
     assert summary.calibration.success is True
     assert summary.calibration.method == CalibrationMethod.GCP
@@ -103,6 +105,7 @@ def test_pipeline_state_d_georeferenced_dsm(synthetic_jpeg_with_exif):
     assert "metric_depth_npy" in summary.artifacts
     assert "point_cloud_ply" in summary.artifacts
     assert "dsm_geotiff" in summary.artifacts
+    assert "dsm_model_glb" in summary.artifacts
     assert "dsm_npy" in summary.artifacts
     assert "dsm_visual_png" in summary.artifacts
     assert "dsm_hillshade_png" in summary.artifacts
@@ -111,6 +114,9 @@ def test_pipeline_state_d_georeferenced_dsm(synthetic_jpeg_with_exif):
     # File existence check
     dsm_info = summary.artifacts["dsm_geotiff"]
     assert Path(dsm_info.file_path).exists()
+    glb_info = summary.artifacts["dsm_model_glb"]
+    assert Path(glb_info.file_path).exists()
+    assert Path(glb_info.file_path).stat().st_size >= 12
 
 
 def test_pipeline_georeferenced_rgb_geotiff_capabilities(synthetic_rgb_geotiff_bytes):

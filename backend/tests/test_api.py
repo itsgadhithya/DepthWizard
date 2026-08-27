@@ -60,6 +60,7 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     assert "relative_depth_visual_png" in data["artifacts"]
     assert "metric_depth_npy" in data["artifacts"]
     assert "dsm_geotiff" in data["artifacts"]
+    assert "dsm_model_glb" in data["artifacts"]
     assert "dsm_npy" in data["artifacts"]
     assert "dsm_visual_png" in data["artifacts"]
 
@@ -67,6 +68,7 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     visual_filename = data["artifacts"]["relative_depth_visual_png"]["filename"]
     npy_filename = data["artifacts"]["raw_relative_depth_npy"]["filename"]
     dsm_filename = data["artifacts"]["dsm_geotiff"]["filename"]
+    glb_filename = data["artifacts"]["dsm_model_glb"]["filename"]
     dsm_npy_filename = data["artifacts"]["dsm_npy"]["filename"]
 
     # Test downloading visual PNG
@@ -85,6 +87,13 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     assert dsm_response.status_code == 200
     assert len(dsm_response.content) > 0
 
+    # Test downloading DSM 3D Surface Model (GLB)
+    glb_response = test_client.get(f"/api/v1/artifacts/{req_id}/{glb_filename}")
+    assert glb_response.status_code == 200
+    assert glb_response.headers["content-type"] == "model/gltf-binary"
+    assert len(glb_response.content) >= 12
+    assert glb_response.content[:4] == b"glTF"
+
     # Test downloading DSM NumPy array
     dsm_npy_resp = test_client.get(f"/api/v1/artifacts/{req_id}/{dsm_npy_filename}")
     assert dsm_npy_resp.status_code == 200
@@ -95,6 +104,7 @@ def test_api_process_plain_image(test_client: TestClient, synthetic_jpeg_bytes):
     assert viewer_resp.status_code == 200
     assert "text/html" in viewer_resp.headers["content-type"]
     assert "Local Metric DSM" in viewer_resp.text
+    assert "THREE.GLTFLoader" in viewer_resp.text
 
 
 def test_api_process_with_gcp_calibration(test_client: TestClient, synthetic_jpeg_bytes):
