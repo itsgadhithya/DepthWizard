@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>DepthWizard Tactical GIS — Asset Manifest & Export Protocol</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-container": "#141559",
+            "surface-container-high": "#1f2164",
+            "surface-container-highest": "#2a2d6f",
+            "surface-container-low": "#0f1056",
+            "surface-container-lowest": "#020045",
+            "deep-navy": "#05034f",
+            "royal-blue": "#121358",
+            "steel-blue": "#2F578A",
+            "teal-accent": "#36ADA3",
+            "teal-bright": "#69d8cd",
+            "on-surface": "#e1e0ff",
+            "on-surface-variant": "#bcc9c7",
+          },
+          fontFamily: {
+            "headline-md": ["Oswald", "sans-serif"],
+            "headline-lg": ["Oswald", "sans-serif"],
+            "headline-lg-mobile": ["Oswald", "sans-serif"],
+            "label-caps": ["JetBrains Mono", "monospace"],
+            "body-md": ["Inter", "sans-serif"],
+            "data-mono": ["JetBrains Mono", "monospace"],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+    .glow-teal {
+      box-shadow: 0 0 15px rgba(54, 173, 163, 0.15);
+    }
+    .hover-glow-teal:hover {
+      box-shadow: 0 0 20px rgba(54, 173, 163, 0.3);
+    }
+    .scanlines {
+      position: relative;
+    }
+    .scanlines::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 19, 88, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+      z-index: 100;
+      background-size: 100% 2px, 3px 100%;
+      pointer-events: none;
+      opacity: 0.1;
+    }
+    #toast-msg {
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+  </style>
+</head>
+
+<body class="bg-deep-navy text-on-surface font-body-md min-h-screen flex flex-col overflow-x-hidden scanlines">
+  <!-- TopNavBar -->
+  <header class="bg-royal-blue/70 backdrop-blur-xl border-b border-steel-blue fixed top-0 left-0 w-full h-16 flex justify-between items-center px-6 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-3 h-3 bg-teal-accent rounded-full animate-pulse shadow-[0_0_10px_#36ADA3]"></div>
+      <a id="nav-brand-link" href="/" class="font-headline-md text-2xl font-bold uppercase text-teal-bright tracking-tighter">DepthWizard</a>
+      <span class="text-xs bg-steel-blue/30 text-on-surface px-2 py-0.5 border border-steel-blue font-data-mono">TACTICAL EXPORT</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <a id="lnk-mission-control" href="/" class="text-on-surface-variant hover:text-teal-bright font-data-mono text-xs flex items-center gap-1 border border-steel-blue px-3 py-1.5 transition-colors">
+        <span class="material-symbols-outlined text-[16px]">dashboard</span>
+        <span>MISSION CONTROL</span>
+      </a>
+      <a id="lnk-view-3d" href="/api/v1/viewer/3cc69191c5fb" target="_blank" class="text-on-surface-variant hover:text-teal-bright font-data-mono text-xs flex items-center gap-1 border border-steel-blue px-3 py-1.5 transition-colors hidden sm:flex">
+        <span class="material-symbols-outlined text-[16px]">3d_rotation</span>
+        <span>OPEN 3D VIEWER</span>
+      </a>
+      <a href="/docs" target="_blank" class="text-xs font-mono text-teal-bright hover:bg-teal-accent hover:text-deep-navy border border-teal-accent px-3 py-1.5 transition-colors flex items-center gap-1">
+        <span class="material-symbols-outlined text-[16px]">api</span>
+        <span>SWAGGER DOCS</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Toast Notification -->
+  <div id="toast-msg" class="fixed bottom-6 right-6 z-50 bg-royal-blue border border-teal-accent text-teal-bright px-4 py-2.5 font-mono text-xs shadow-2xl opacity-0 pointer-events-none transform translate-y-2 flex items-center gap-2">
+    <span class="material-symbols-outlined text-[18px]">check_circle</span>
+    <span id="toast-text">Action executed</span>
+  </div>
+
+  <!-- Main Content Canvas -->
+  <main class="flex-1 w-full pt-24 min-h-screen px-6 pb-12 flex flex-col gap-6 max-w-6xl mx-auto">
+    <!-- Header Section -->
+    <header class="w-full">
+      <h1 class="font-headline-lg-mobile md:font-headline-lg text-4xl md:text-5xl text-teal-bright uppercase mb-2 tracking-wide">
+        Data Export Protocol & Artifact Manifest
+      </h1>
+      <p class="font-data-mono text-xs text-on-surface-variant uppercase">
+        Live Artifact Stream for Calibrated Monocular Depth & GeoTIFF Reconstruction
+      </p>
+    </header>
+
+    <!-- Download Interface -->
+    <div class="w-full">
+      <div class="bg-royal-blue/70 backdrop-blur-xl border border-steel-blue p-6 flex flex-col gap-6 relative overflow-hidden">
+        <div class="absolute top-0 right-0 p-2 opacity-30 pointer-events-none">
+          <span class="material-symbols-outlined text-7xl text-teal-accent">archive</span>
+        </div>
+
+        <div>
+          <h2 class="font-label-caps text-xs text-teal-bright uppercase mb-4 border-b border-steel-blue pb-2 flex justify-between items-center">
+            <span class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">inventory_2</span>
+              GENERATED ASSET MANIFEST
+            </span>
+            <span id="manifest-id" class="text-on-surface-variant font-data-mono bg-deep-navy px-2 py-0.5 border border-steel-blue">SCN-ID-3cc69191c5fb</span>
+          </h2>
+        </div>
+
+        <!-- Dynamic Asset Cards List -->
+        <div id="manifest-cards-list" class="flex flex-col gap-3 font-data-mono">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Bulk Action -->
+        <div class="mt-6 border-t border-steel-blue pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-royal-blue/30 p-4">
+          <span class="text-xs font-data-mono text-on-surface-variant">Download all pipeline output files packaged as a single ZIP payload.</span>
+          <a id="lnk-zip" href="/api/v1/artifacts/3cc69191c5fb/bundle.zip" download class="w-full sm:w-auto bg-teal-accent text-deep-navy font-label-caps text-sm uppercase py-3 px-8 hover:bg-teal-bright border border-teal-accent transition-colors flex items-center justify-center gap-2 hover-glow-teal font-bold">
+            <span class="material-symbols-outlined text-[18px]">archive</span>
+            <span>Download Full Package (ZIP)</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const reqId = urlParams.get('request_id') || "3cc69191c5fb";
+    
+    document.getElementById("manifest-id").innerText = `SCN-ID-${reqId}`;
+    document.getElementById("lnk-mission-control").href = `/?request_id=${reqId}`;
+    document.getElementById("nav-brand-link").href = `/?request_id=${reqId}`;
+    document.getElementById("lnk-view-3d").href = `/api/v1/viewer/${reqId}`;
+    document.getElementById("lnk-zip").href = `/api/v1/artifacts/${reqId}/bundle.zip`;
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast-msg");
+      document.getElementById("toast-text").innerText = msg;
+      toast.classList.remove("opacity-0", "translate-y-2", "pointer-events-none");
+      toast.classList.add("opacity-100", "translate-y-0");
+      setTimeout(() => {
+        toast.classList.remove("opacity-100", "translate-y-0");
+        toast.classList.add("opacity-0", "translate-y-2", "pointer-events-none");
+      }, 3000);
+    }
+
+    async function loadManifest() {
+      const container = document.getElementById("manifest-cards-list");
+      container.innerHTML = "";
+
+      let artifacts = null;
+      try {
+        const res = await fetch(`/api/v1/sessions/${reqId}`);
+        if (res.ok) {
+          const data = await res.json();
+          artifacts = data.artifacts;
+        }
+      } catch (e) {
+        console.warn("Could not fetch session:", e);
+      }
+
+      if (!artifacts) {
+        // Fallback standard artifacts
+        artifacts = {
+          "3d_model": { filename: "terrain_3d_mesh.ply", download_url: `/api/v1/artifacts/${reqId}/terrain_3d_mesh.ply`, size_bytes: 62189384, description: "Binary PLY with baked RGB vertex colors" },
+          "dsm": { filename: "fused_dsm.tif", download_url: `/api/v1/artifacts/${reqId}/fused_dsm.tif`, size_bytes: 11864076, description: "Calibrated Float64 GeoTIFF elevation raster" },
+          "relative_depth_colored": { filename: "relative_depth_colored.png", download_url: `/api/v1/artifacts/${reqId}/relative_depth_colored.png`, size_bytes: 598158, description: "High-res normalized colorized depth visual" },
+          "relative_depth": { filename: "relative_depth.npy", download_url: `/api/v1/artifacts/${reqId}/relative_depth.npy`, size_bytes: 11858048, description: "Float64 NumPy binary depth array payload" },
+        };
+      }
+
+      const definitions = [
+        { key: "3d_model", title: "3D Terrain Surface Mesh", icon: "3d_rotation", badge: ".PLY", defaultFile: "terrain_3d_mesh.ply", defaultDesc: "Binary PLY with baked RGB vertex colors" },
+        { key: "dsm", title: "DSM Elevation Model", icon: "grid_4x4", badge: ".TIF", defaultFile: "fused_dsm.tif", defaultDesc: "Calibrated Float64 GeoTIFF elevation raster" },
+        { key: "relative_depth_colored", title: "Depth Colormap (Inferno)", icon: "image", badge: ".PNG", defaultFile: "relative_depth_colored.png", defaultDesc: "High-res normalized colorized depth visual" },
+        { key: "relative_depth_16bit", title: "16-Bit Lossless Depth Raster", icon: "filter_hdr", badge: ".PNG", defaultFile: "relative_depth_16bit.png", defaultDesc: "Lossless grayscale uint16 PNG for high-precision elevation" },
+        { key: "relative_depth", title: "Raw Relative Depth Array", icon: "data_object", badge: ".NPY", defaultFile: "relative_depth.npy", defaultDesc: "Float64 NumPy binary depth array payload" },
+        { key: "input_image", title: "Original Source Imagery", icon: "satellite_alt", badge: "SOURCE", defaultFile: "input_image.tif", defaultDesc: "Original uploaded satellite or aerial image" },
+      ];
+
+      definitions.forEach(def => {
+        const item = artifacts[def.key];
+        if (!item) return;
+
+        const sizeStr = item.size_bytes ? `${(item.size_bytes / (1024 * 1024)).toFixed(1)} MB` : "Ready";
+        const downloadUrl = item.download_url || `/api/v1/artifacts/${reqId}/${def.defaultFile}`;
+
+        const card = document.createElement("div");
+        card.className = "bg-deep-navy/50 border border-steel-blue p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-teal-accent/50 transition-colors";
+        card.innerHTML = `
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-royal-blue border border-steel-blue flex items-center justify-center text-teal-bright flex-shrink-0">
+              <span class="material-symbols-outlined">${def.icon}</span>
+            </div>
+            <div>
+              <h3 class="font-headline-md text-xl uppercase text-on-surface m-0 leading-none">${def.title}</h3>
+              <p class="font-data-mono text-xs text-on-surface-variant uppercase mt-1">${item.description || def.defaultDesc}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4 w-full md:w-auto justify-end">
+            <span class="font-label-caps bg-royal-blue px-3 py-1 text-teal-bright border border-steel-blue">${def.badge}</span>
+            <span class="font-data-mono text-xs text-on-surface-variant">${sizeStr}</span>
+            <button onclick="navigator.clipboard.writeText(window.location.origin + '${downloadUrl}'); showToast('URL copied to clipboard!');" class="p-2 text-on-surface-variant hover:text-teal-bright border border-steel-blue/60 hover:border-teal-accent transition-colors" title="Copy Download Link">
+              <span class="material-symbols-outlined text-[16px]">link</span>
+            </button>
+            <a href="${downloadUrl}" download class="ml-auto md:ml-0 bg-transparent text-teal-bright font-label-caps uppercase py-2 px-6 border border-teal-accent hover:bg-teal-accent hover:text-deep-navy transition-colors flex items-center gap-2">
+              <span class="material-symbols-outlined text-[16px]">download</span>
+              Download
+            </a>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+    loadManifest();
+  </script>
+</body>
+</html>

@@ -27,9 +27,15 @@ python main.py --host 0.0.0.0 --port 8000
 | :--- | :--- | :--- | :--- |
 | `GET` | `/health` | Health & system capability status | `application/json` |
 | `POST` | `/process` | Process image / GeoTIFF to 3D & DSM | `multipart/form-data` |
+| `GET` | `/sessions/{request_id}` | Retrieve stored session telemetry & manifest | `application/json` |
+| `GET` | `/samples` | List available sample datasets | `application/json` |
+| `GET` | `/samples/{filename}` | Download sample dataset file | Binary / Octet-Stream |
+| `POST` | `/samples/process-sample` | 1-Click Server-Side sample execution | `application/x-www-form-urlencoded` |
 | `GET` | `/artifacts/{request_id}/{filename}` | Download generated output artifacts | Binary / Octet-Stream |
+| `GET` | `/artifacts/{request_id}/bundle.zip` | Download all artifacts as ZIP package | `application/zip` |
 | `GET` | `/viewer/{request_id}` | Standalone WebGL 3D Viewer page | `text/html` |
 | `POST` | `/viewer/{request_id}/launch-desktop` | Spawn native PyVista WASD window | `application/json` |
+
 
 ---
 

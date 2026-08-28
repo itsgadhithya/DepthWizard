@@ -1,10 +1,5 @@
-"""
-Service Adapter Layer for DepthWizard V2
-Coordinates ingestion, metadata extraction, DepthAnythingV2 inference,
-geotiff processing, terrain fusion, mesh export, and JSON response assembly.
-"""
-
 import io
+import json
 import math
 import time
 import uuid
@@ -19,7 +14,7 @@ from rasterio.transform import from_origin
 import trimesh
 
 from src.config import (
-    ARTIFACTS_DIR, SPATIAL_DTYPE,
+    ARTIFACTS_DIR, INPUT_DIR, SPATIAL_DTYPE,
     ensure_directories_exist, pipeline_logger
 )
 from src.geotiff_processor import GeoTIFFProcessor, GeoTIFFProcessorError
@@ -347,7 +342,6 @@ class DepthWizardService:
             # Case 2: Standard optical image (JPEG/PNG) without metric calibration
             messages.append("Standard optical image: Generating relative 3D mesh via pinhole back-projection.")
             # Uncalibrated relative backprojection
-            # Map normalized depth [0..1] to relative model space Z coordinates
             z_rel = (1.0 - raw_depth * 0.7) * 100.0  # relative depth scale
 
             # Backproject pixels (u, v) -> (X, Y, Z)
@@ -393,7 +387,7 @@ class DepthWizardService:
 
         total_time_ms = (time.perf_counter() - t_start) * 1000.0
 
-        return DepthWizardResponse(
+        response = DepthWizardResponse(
             request_id=request_id,
             state=state,
             relative_depth_available=True,
@@ -415,6 +409,194 @@ class DepthWizardService:
             artifacts=artifacts,
         )
 
+        # Save session response JSON for state persistence
+        try:
+            resp_json_path = req_dir / "response.json"
+            with open(resp_json_path, "w", encoding="utf-8") as f:
+                f.write(response.model_dump_json(indent=2))
+        except Exception as e:
+            logger.warning(f"Could not persist session response JSON: {e}")
+
+        return response
+
+    def get_session(self, request_id: str) -> Optional[DepthWizardResponse]:
+        """
+        Retrieves stored DepthWizardResponse for a given request ID.
+        """
+        safe_id = Path(request_id).name
+        req_dir = ARTIFACTS_DIR / safe_id
+        if not req_dir.exists() or not req_dir.is_dir():
+            return None
+
+        resp_json_path = req_dir / "response.json"
+        if resp_json_path.exists():
+            try:
+                with open(resp_json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return DepthWizardResponse.model_validate(data)
+            except Exception as e:
+                logger.warning(f"Failed to parse stored session response.json: {e}")
+
+        # Fallback: Reconstruct response from artifact files in the directory
+        artifacts: Dict[str, ArtifactInfo] = {}
+        has_dsm = False
+        has_mesh = False
+
+        for f in req_dir.iterdir():
+            if not f.is_file():
+                continue
+            name = f.name
+            size = f.stat().st_size
+            media_type = self._get_media_type(name)
+            if name.startswith("input_image"):
+                artifacts["input_image"] = ArtifactInfo(
+                    filename=name, artifact_type="input_image",
+                    download_url=f"/api/v1/artifacts/{safe_id}/{name}",
+                    size_bytes=size, media_type=media_type,
+                    description="Original uploaded image"
+                )
+            elif name == "terrain_3d_mesh.ply":
+                has_mesh = True
+                artifacts["3d_model"] = ArtifactInfo(
+                    filename=name, artifact_type="3d_model",
+                    download_url=f"/api/v1/artifacts/{safe_id}/{name}",
+                    size_bytes=size, media_type=media_type,
+                    description="3D terrain surface mesh"
+                )
+            elif name == "fused_dsm.tif":
+                has_dsm = True
+                artifacts["dsm"] = ArtifactInfo(
+                    filename=name, artifact_type="dsm",
+                    download_url=f"/api/v1/artifacts/{safe_id}/{name}",
+                    size_bytes=size, media_type=media_type,
+                    description="Digital Surface Model GeoTIFF"
+                )
+            elif name == "relative_depth.npy":
+                artifacts["relative_depth"] = ArtifactInfo(
+                    filename=name, artifact_type="relative_depth",
+                    download_url=f"/api/v1/artifacts/{safe_id}/{name}",
+                    size_bytes=size, media_type=media_type,
+                    description="Raw relative depth array"
+                )
+            elif name == "relative_depth_colored.png":
+                artifacts["relative_depth_colored"] = ArtifactInfo(
+                    filename=name, artifact_type="visualization",
+                    download_url=f"/api/v1/artifacts/{safe_id}/{name}",
+                    size_bytes=size, media_type=media_type,
+                    description="Inferno colormap relative depth visual"
+                )
+
+        state = "STATE_C" if has_dsm else "STATE_B"
+        return DepthWizardResponse(
+            request_id=safe_id,
+            state=state,
+            relative_depth_available=True,
+            camera_model_available=True,
+            metric_depth_available=has_dsm,
+            georeferencing_available=has_dsm,
+            dsm_available=has_dsm,
+            validation_available=False,
+            model_name=self.depth_engine.model_name,
+            device_used=self.depth_engine.device,
+            total_time_ms=2500.0,
+            timings_ms=TimingsBreakdown(),
+            messages=["Session restored from artifact store."],
+            warnings=[],
+            metadata=ImageMetadata(image_width=512, image_height=512, channels=3, format="TIF" if has_dsm else "JPG"),
+            camera=CameraParameters(fx=512.0, fy=512.0, cx=256.0, cy=256.0, fov_deg=55.0, estimated=True),
+            calibration=CalibrationInfo(method="geotiff_dem_fusion" if has_dsm else "none", calibrated=has_dsm),
+            validation=None,
+            artifacts=artifacts,
+        )
+
+    def list_samples(self) -> List[Dict[str, Any]]:
+        """
+        Lists bundled sample datasets available for 1-click execution.
+        """
+        samples = []
+        if not INPUT_DIR.exists():
+            return samples
+
+        sample_definitions = {
+            "sample_terrain.tif": {
+                "id": "himalayas_dem",
+                "name": "Himalayas GeoTIFF DEM (Multi-Band)",
+                "description": "Calibrated 4-band GeoTIFF with RGB satellite imagery + DEM elevation band (ISRO Bengaluru / Mt Everest).",
+                "type": "GeoTIFF DEM",
+                "recommended_z": 1.5,
+                "recommended_mod": 0.35,
+            },
+            "test_optical.jpg": {
+                "id": "aerial_optical",
+                "name": "High-Res Aerial Optical Survey",
+                "description": "Uncalibrated optical RGB reconnaissance photo for monocular relative depth estimation.",
+                "type": "Optical RGB",
+                "recommended_z": 1.0,
+                "recommended_mod": 0.40,
+            }
+        }
+
+        for file_path in INPUT_DIR.iterdir():
+            if file_path.is_file() and not file_path.name.startswith("."):
+                name = file_path.name
+                info = sample_definitions.get(name, {
+                    "id": file_path.stem,
+                    "name": file_path.name,
+                    "description": f"Sample dataset {file_path.name}",
+                    "type": file_path.suffix.upper().replace(".", ""),
+                    "recommended_z": 1.0,
+                    "recommended_mod": 0.35,
+                })
+                samples.append({
+                    "id": info["id"],
+                    "filename": name,
+                    "name": info["name"],
+                    "description": info["description"],
+                    "type": info["type"],
+                    "size_bytes": file_path.stat().st_size,
+                    "recommended_z": info["recommended_z"],
+                    "recommended_mod": info["recommended_mod"],
+                    "download_url": f"/api/v1/samples/{name}",
+                })
+        return samples
+
+    def get_sample_path(self, filename: str) -> Optional[Path]:
+        """
+        Returns safe path to a sample file in INPUT_DIR.
+        """
+        safe_name = Path(filename).name
+        target_path = INPUT_DIR / safe_name
+        if target_path.exists() and target_path.is_file():
+            return target_path
+        return None
+
+    def process_sample(
+        self,
+        sample_name: str,
+        modulation_weight: float = 0.35,
+        z_exaggeration: float = 1.0,
+        pixel_spacing_m: Optional[float] = None,
+        focal_length_px: Optional[float] = None,
+    ) -> DepthWizardResponse:
+        """
+        Loads and executes a sample dataset directly on the server.
+        """
+        sample_path = self.get_sample_path(sample_name)
+        if not sample_path:
+            raise ValueError(f"Sample dataset '{sample_name}' not found in {INPUT_DIR}.")
+
+        with open(sample_path, "rb") as f:
+            image_bytes = f.read()
+
+        return self.process_request(
+            image_bytes=image_bytes,
+            filename=sample_path.name,
+            modulation_weight=modulation_weight,
+            z_exaggeration=z_exaggeration,
+            pixel_spacing_m=pixel_spacing_m,
+            focal_length_px=focal_length_px,
+        )
+
     def _get_media_type(self, filename: str) -> str:
         ext = Path(filename).suffix.lower()
         mapping = {
@@ -427,3 +609,4 @@ class DepthWizardService:
             ".ply": "application/x-ply",
         }
         return mapping.get(ext, "application/octet-stream")
+

@@ -1,15 +1,17 @@
 """
 FastAPI Route Definitions for DepthWizard API
-Provides health check, image processing, artifact serving, and 3D viewer endpoints.
+Provides health check, image processing, artifact serving, zip packaging, and 3D viewer endpoints.
 """
 
+import io
 import os
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, status
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 
 from src.config import ARTIFACTS_DIR, pipeline_logger
 from api.models import DepthWizardResponse, HealthResponse
@@ -88,6 +90,107 @@ async def process_image(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"DepthWizard processing failure: {str(e)}"
         )
+
+
+@router.get(
+    "/sessions/{request_id}",
+    response_model=DepthWizardResponse,
+    summary="Get Session Results & Telemetry",
+    description="Retrieves the full telemetry, metadata, and artifact manifest for a previous processing request."
+)
+async def get_session_info(request_id: str) -> DepthWizardResponse:
+    session = service.get_session(request_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session with request_id '{request_id}' not found."
+        )
+    return session
+
+
+@router.get(
+    "/samples",
+    summary="List Available Sample Datasets",
+    description="Returns metadata for bundled sample datasets (e.g. Himalayas GeoTIFF DEM, Aerial Optical)."
+)
+async def list_sample_datasets():
+    return service.list_samples()
+
+
+@router.get(
+    "/samples/{filename}",
+    summary="Download Sample Dataset",
+    description="Downloads a specific sample dataset file from the server input repository."
+)
+async def get_sample_file(filename: str):
+    sample_path = service.get_sample_path(filename)
+    if not sample_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sample file '{filename}' not found."
+        )
+    media_type = service._get_media_type(filename)
+    return FileResponse(path=sample_path, media_type=media_type, filename=sample_path.name)
+
+
+@router.post(
+    "/samples/process-sample",
+    response_model=DepthWizardResponse,
+    summary="1-Click Server-Side Sample Execution",
+    description="Executes the 3D reconstruction and depth fusion pipeline directly on a bundled sample dataset."
+)
+async def process_sample_dataset(
+    sample_name: str = Form("sample_terrain.tif", description="Sample file name to process"),
+    modulation_weight: float = Form(0.35, description="High-frequency detail injection weight"),
+    z_exaggeration: float = Form(1.0, description="Vertical terrain exaggeration multiplier"),
+    pixel_spacing_m: Optional[float] = Form(None, description="Pixel resolution in meters"),
+    focal_length_px: Optional[float] = Form(None, description="Focal length in pixels"),
+) -> DepthWizardResponse:
+    try:
+        response = service.process_sample(
+            sample_name=sample_name,
+            modulation_weight=modulation_weight,
+            z_exaggeration=z_exaggeration,
+            pixel_spacing_m=pixel_spacing_m,
+            focal_length_px=focal_length_px,
+        )
+        return response
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Sample execution error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process sample dataset: {str(e)}"
+        )
+
+
+@router.get(
+    "/artifacts/{request_id}/bundle.zip",
+    summary="Download All Artifacts as ZIP Package",
+    description="Packages all artifacts generated for the request into a single compressed ZIP archive."
+)
+async def download_all_artifacts_zip(request_id: str):
+    safe_request_id = Path(request_id).name
+    req_dir = ARTIFACTS_DIR / safe_request_id
+    if not req_dir.exists() or not req_dir.is_dir():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No artifacts found for request '{request_id}'."
+        )
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_STORED) as zip_file:
+        for file_path in req_dir.iterdir():
+            if file_path.is_file() and not file_path.name.endswith(".zip"):
+                zip_file.write(file_path, arcname=file_path.name)
+
+    zip_buffer.seek(0)
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="depthwizard_package_{safe_request_id}.zip"'}
+    )
 
 
 @router.get(

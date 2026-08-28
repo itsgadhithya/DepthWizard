@@ -295,3 +295,58 @@ def test_9_nonexistent_artifact_404():
     """
     res = client.get("/api/v1/artifacts/fake_request_id/nonexistent.ply")
     assert res.status_code == 404
+
+
+def test_10_session_retrieval(sample_jpeg_bytes):
+    """
+    10. Test retrieving full session info via GET /api/v1/sessions/{request_id}.
+    """
+    proc_res = client.post(
+        "/api/v1/process",
+        files={"file": ("session_test.jpg", sample_jpeg_bytes, "image/jpeg")}
+    )
+    assert proc_res.status_code == 200
+    orig_data = proc_res.json()
+    req_id = orig_data["request_id"]
+
+    sess_res = client.get(f"/api/v1/sessions/{req_id}")
+    assert sess_res.status_code == 200
+    sess_data = sess_res.json()
+    assert sess_data["request_id"] == req_id
+    assert sess_data["state"] == orig_data["state"]
+    assert "input_image" in sess_data["artifacts"]
+    assert "3d_model" in sess_data["artifacts"]
+
+
+def test_11_sample_datasets_and_execution():
+    """
+    11. Test listing samples, downloading a sample, and 1-click server-side sample execution.
+    """
+    # 1. List samples
+    samples_res = client.get("/api/v1/samples")
+    assert samples_res.status_code == 200
+    samples = samples_res.json()
+    assert isinstance(samples, list)
+    assert len(samples) > 0
+
+    # Verify Himalayas GeoTIFF sample
+    dem_sample = next((s for s in samples if "sample_terrain" in s["filename"]), None)
+    assert dem_sample is not None
+    assert "download_url" in dem_sample
+
+    # 2. Download sample file
+    dl_res = client.get(dem_sample["download_url"])
+    assert dl_res.status_code == 200
+    assert len(dl_res.content) > 0
+
+    # 3. 1-Click Server-Side Sample Execution
+    exec_res = client.post(
+        "/api/v1/samples/process-sample",
+        data={"sample_name": "sample_terrain.tif", "modulation_weight": 0.35, "z_exaggeration": 1.5}
+    )
+    assert exec_res.status_code == 200
+    data = exec_res.json()
+    assert data["state"] == "STATE_C"
+    assert data["metric_depth_available"] is True
+    assert "fused_dsm.tif" in data["artifacts"]["dsm"]["filename"]
+
