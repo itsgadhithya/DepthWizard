@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DepthWizard 3D — Interactive Terrain Navigator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background-color: #07090e;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* ── HUD Header & Info ────────────────────────────────── */
+    .hud-panel {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(13, 17, 23, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 139, 253, 0.28);
+      border-radius: 14px;
+      padding: 16px 20px;
+      z-index: 10;
+      width: 330px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+      transition: transform 0.2s ease;
+    }
+    .hud-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #58a6ff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .hud-badge {
+      background: linear-gradient(135deg, #238636, #2ea043);
+      color: #ffffff;
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .hud-info {
+      font-size: 0.78rem;
+      color: #8b949e;
+      margin-bottom: 12px;
+      word-break: break-all;
+    }
+    .hud-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .stat-box {
+      background: rgba(22, 27, 34, 0.75);
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(48, 54, 61, 0.8);
+    }
+    .stat-label {
+      color: #8b949e;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .stat-value {
+      color: #f0f6fc;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    /* ── Preset View Buttons ─────────────────────────────── */
+    .section-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: #8b949e;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .view-modes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .btn-view {
+      background: rgba(33, 38, 45, 0.85);
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .btn-view:hover, .btn-view.active {
+      background: #1f6feb;
+      border-color: #58a6ff;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(88, 166, 255, 0.4);
+    }
+
+    /* ── Render Style & Vertical Exaggeration ─────────────── */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .pill-group {
+      display: flex;
+      gap: 4px;
+      background: rgba(22, 27, 34, 0.8);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+    }
+    .pill-btn {
+      background: transparent;
+      border: none;
+      color: #8b949e;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    .pill-btn.active {
+      background: #238636;
+      color: #ffffff;
+    }
+    .pill-btn:hover:not(.active) {
+      color: #f0f6fc;
+      background: rgba(56, 139, 253, 0.2);
+    }
+
+    .btn-action {
+      background: rgba(33, 38, 45, 0.85);
+      color: #58a6ff;
+      border: 1px solid rgba(56, 139, 253, 0.35);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      margin-top: 6px;
+      transition: all 0.2s ease;
+    }
+    .btn-action:hover {
+      background: #1f6feb;
+      color: #ffffff;
+      border-color: #58a6ff;
+      box-shadow: 0 0 12px rgba(88, 166, 255, 0.4);
+    }
+
+    /* ── Google Maps Navigation Pad (Bottom Center) ──────── */
+    .nav-controller {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(13, 17, 23, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(56, 139, 253, 0.35);
+      border-radius: 20px;
+      padding: 12px 18px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+    }
+    .dpad-container {
+      display: grid;
+      grid-template-columns: repeat(3, 42px);
+      grid-template-rows: repeat(3, 42px);
+      gap: 5px;
+      justify-items: center;
+      align-items: center;
+    }
+    .nav-btn {
+      width: 42px;
+      height: 42px;
+      background: #21262d;
+      border: 1px solid #388bfd44;
+      border-radius: 10px;
+      color: #58a6ff;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    .nav-btn:hover {
+      background: #388bfd;
+      color: #ffffff;
+      transform: scale(1.06);
+      border-color: #58a6ff;
+      box-shadow: 0 0 14px rgba(56, 139, 253, 0.6);
+    }
+    .nav-btn:active {
+      transform: scale(0.95);
+      background: #1f6feb;
+    }
+    .nav-btn.center-btn {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #8b949e;
+      background: rgba(33, 38, 45, 0.5);
+      border-color: #30363d;
+      cursor: default;
+    }
+    .nav-settings {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-left: 1px solid #30363d;
+      padding-left: 16px;
+    }
+    .nav-setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.75rem;
+      color: #8b949e;
+    }
+    .step-pill {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #f0f6fc;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .step-pill.active {
+      background: #238636;
+      border-color: #3fb950;
+      color: #ffffff;
+    }
+
+    /* ── Floating Compass / Height Indicator ─────────────── */
+    .telemetry-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(13, 17, 23, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(48, 54, 61, 0.8);
+      border-radius: 12px;
+      padding: 12px 16px;
+      z-index: 10;
+      font-size: 0.78rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 170px;
+    }
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .telemetry-label {
+      color: #8b949e;
+    }
+    .telemetry-val {
+      color: #58a6ff;
+      font-weight: 600;
+      font-family: monospace;
+    }
+
+    /* ── Loading Overlay ─────────────────────────────────── */
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(7, 9, 14, 0.94);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.4s ease;
+    }
+    .spinner {
+      width: 52px;
+      height: 52px;
+      border: 4px solid rgba(88, 166, 255, 0.15);
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Instructions Banner ─────────────────────────────── */
+    #instructions {
+      position: absolute;
+      bottom: 24px;
+      left: 20px;
+      background: rgba(13, 17, 23, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid #30363d;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.74rem;
+      color: #8b949e;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .highlight {
+      color: #58a6ff;
+      font-weight: 600;
+    }
+  </style>
+  <!-- Three.js + OrbitControls + PLYLoader via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PLYLoader.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text" style="font-size: 1.15rem; color: #f0f6fc; font-weight: 600;">Loading 3D Terrain Model...</div>
+  </div>
+
+  <!-- Top-Left Info & GIS Controls Panel -->
+  <div class="hud-panel">
+    <div class="hud-title">
+      DepthWizard 3D
+      <span id="state-badge" class="hud-badge">LOADED</span>
+    </div>
+    <div id="req-info" class="hud-info">Request: <span id="req-id-text">-</span></div>
+
+    <div class="hud-stats">
+      <div class="stat-box">
+        <div class="stat-label">Vertices</div>
+        <div id="stat-verts" class="stat-value">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Faces</div>
+        <div id="stat-faces" class="stat-value">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Extent X × Y</div>
+        <div id="stat-dim-x" class="stat-value">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Elevation ΔZ</div>
+        <div id="stat-dim-z" class="stat-value">-</div>
+      </div>
+    </div>
+
+    <!-- Camera Preset Views -->
+    <div class="section-title">Camera Presets</div>
+    <div class="view-modes">
+      <button id="btn-overview" class="btn-view active">🌐 Entire Model</button>
+      <button id="btn-topdown" class="btn-view">🧭 Top-Down Map</button>
+      <button id="btn-street" class="btn-view">🚶 Surface View</button>
+      <button id="btn-isometric" class="btn-view">🏔️ Isometric 45°</button>
+    </div>
+
+    <!-- Render Style Modes -->
+    <div class="section-title">Color & Texture</div>
+    <div class="controls-row">
+      <div class="pill-group" style="width: 100%; justify-content: space-between;">
+        <button id="mode-rgb" class="pill-btn active">🌍 RGB Texture</button>
+        <button id="mode-elevation" class="pill-btn">🌈 Elevation Heatmap</button>
+        <button id="mode-wireframe" class="pill-btn">⬡ Wireframe</button>
+      </div>
+    </div>
+
+    <!-- Vertical Exaggeration (Z-Scale) -->
+    <div class="section-title">Vertical Exaggeration (Z-Scale)</div>
+    <div class="controls-row">
+      <div class="pill-group" style="width: 100%; justify-content: space-between;">
+        <button class="pill-btn z-scale-btn active" data-zscale="1.0">1.0×</button>
+        <button class="pill-btn z-scale-btn" data-zscale="1.5">1.5×</button>
+        <button class="pill-btn z-scale-btn" data-zscale="2.0">2.0×</button>
+        <button class="pill-btn z-scale-btn" data-zscale="3.0">3.0×</button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 6px; margin-top: 6px;">
+      <button id="btn-reset" class="btn-view" style="flex: 1;">↺ Center View</button>
+      <button id="btn-fullscreen" class="btn-view" style="flex: 1;">⛶ Fullscreen</button>
+    </div>
+
+    <!-- Native Desktop Viewer Launcher -->
+    <button id="btn-launch-desktop" class="btn-action">
+      🚀 Open Native Desktop PyVista Viewer
+    </button>
+  </div>
+
+  <!-- Top-Right Telemetry -->
+  <div class="telemetry-panel">
+    <div class="telemetry-row">
+      <span class="telemetry-label">Camera Height</span>
+      <span id="tel-height" class="telemetry-val">0.0 m</span>
+    </div>
+    <div class="telemetry-row">
+      <span class="telemetry-label">Heading</span>
+      <span id="tel-heading" class="telemetry-val">0° N</span>
+    </div>
+    <div class="telemetry-row">
+      <span class="telemetry-label">Step Size</span>
+      <span id="tel-step" class="telemetry-val">25 m</span>
+    </div>
+    <div class="telemetry-row">
+      <span class="telemetry-label">Elevation Min</span>
+      <span id="tel-elev-min" class="telemetry-val">0 m</span>
+    </div>
+    <div class="telemetry-row">
+      <span class="telemetry-label">Elevation Max</span>
+      <span id="tel-elev-max" class="telemetry-val">0 m</span>
+    </div>
+  </div>
+
+  <!-- Bottom-Center Google Maps Style Navigation Controller -->
+  <div class="nav-controller">
+    <div class="dpad-container">
+      <!-- Row 1 -->
+      <button id="btn-turn-left" class="nav-btn" title="Turn Left 45° (Q)">↺</button>
+      <button id="btn-move-fwd" class="nav-btn" title="Glide Forward (W / ↑)">▲</button>
+      <button id="btn-turn-right" class="nav-btn" title="Turn Right 45° (E)">↻</button>
+      <!-- Row 2 -->
+      <button id="btn-move-left" class="nav-btn" title="Strafe Left (A / ←)">◀</button>
+      <div class="nav-btn center-btn">NAV</div>
+      <button id="btn-move-right" class="nav-btn" title="Strafe Right (D / →)">▶</button>
+      <!-- Row 3 -->
+      <button id="btn-elev-down" class="nav-btn" title="Lower Altitude">▼</button>
+      <button id="btn-move-back" class="nav-btn" title="Glide Backward (S / ↓)">▼</button>
+      <button id="btn-elev-up" class="nav-btn" title="Gain Altitude">▲</button>
+    </div>
+
+    <div class="nav-settings">
+      <div class="nav-setting-row">
+        <span>Step Distance:</span>
+        <div id="step-pill-container" style="display: flex; gap: 4px;">
+          <!-- Dynamically populated based on terrain scale -->
+        </div>
+      </div>
+      <div class="nav-setting-row">
+        <span>Click Terrain:</span>
+        <span style="color: #3fb950; font-weight: 600;">Teleport Glide</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instructions Hint -->
+  <div id="instructions">
+    💡 <span class="highlight">Click Navigation Arrows</span> or <span class="highlight">Click any point on Terrain</span> to glide smoothly!
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestId = urlParams.get('request_id') || window.location.pathname.split('/').pop();
+    document.getElementById('req-id-text').innerText = requestId;
+
+    // ── Three.js Scene Setup ──────────────────────────────────────────
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x07090e);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1.0, 5000000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.maxPolarAngle = Math.PI * 0.49; // Keep camera above terrain horizon in overview
+
+    // ── Robust Multi-Source Lighting ──────────────────────────────────
+    // 1. Hemisphere Light (Simulates realistic sky blue down-welling and dark earth up-welling)
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x223344, 0.85);
+    scene.add(hemiLight);
+
+    // 2. Main Sun Light (Key relief light)
+    const sunLight = new THREE.DirectionalLight(0xfffaed, 1.1);
+    sunLight.position.set(10000, 20000, 10000);
+    scene.add(sunLight);
+
+    // 3. Ambient Fill Light
+    const fillLight = new THREE.DirectionalLight(0x6688bb, 0.4);
+    fillLight.position.set(-10000, 10000, -10000);
+    scene.add(fillLight);
+
+    // ── State Variables ───────────────────────────────────────────────
+    let currentMesh = null;
+    let originalPositions = null;
+    let originalColors = null;
+    let elevationColors = null;
+    let modelBounds = null;
+    let modelCenter = new THREE.Vector3();
+    let modelRadius = 1000;
+    let stepDistance = 50.0;
+    let isTransitioning = false;
+    let currentZScale = 1.0;
+    let currentRenderMode = 'rgb'; // 'rgb' | 'elevation' | 'wireframe'
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    // 3D In-Scene Navigation Indicator Group
+    const navGroup = new THREE.Group();
+    scene.add(navGroup);
+
+    // ── Load PLY 3D Model ─────────────────────────────────────────────
+    const modelUrl = `/api/v1/artifacts/${requestId}/terrain_3d_mesh.ply`;
+    const loader = new THREE.PLYLoader();
+
+    loader.load(
+      modelUrl,
+      function (geometry) {
+        geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+
+        // Backup original vertex positions for live Z-Scale (Vertical Exaggeration)
+        originalPositions = geometry.attributes.position.clone();
+
+        const hasColors = geometry.hasAttribute('color');
+        if (hasColors) {
+          originalColors = geometry.attributes.color.clone();
+        }
+
+        // Compute elevation min and max along Z (which becomes Y in Three.js)
+        const bbox = geometry.boundingBox;
+        const elevMin = bbox.min.z;
+        const elevMax = bbox.max.z;
+        const elevSpan = Math.max(1.0, elevMax - elevMin);
+
+        // Precompute Inferno / Hypsometric Elevation Colormap
+        const vertCount = geometry.attributes.position.count;
+        const elevColorArr = new Float32Array(vertCount * 3);
+        const posArr = geometry.attributes.position.array;
+
+        for (let i = 0; i < vertCount; i++) {
+          const z = posArr[i * 3 + 2];
+          const t = Math.max(0, Math.min(1, (z - elevMin) / elevSpan));
+          // Hypsometric terrain gradient (Green -> Yellow -> Brown -> White)
+          let r, g, b;
+          if (t < 0.25) {
+            const k = t / 0.25;
+            r = 0.15 + 0.2 * k; g = 0.55 + 0.3 * k; b = 0.25;
+          } else if (t < 0.55) {
+            const k = (t - 0.25) / 0.30;
+            r = 0.35 + 0.45 * k; g = 0.85 - 0.1 * k; b = 0.25 - 0.1 * k;
+          } else if (t < 0.80) {
+            const k = (t - 0.55) / 0.25;
+            r = 0.80 - 0.1 * k; g = 0.75 - 0.3 * k; b = 0.15 + 0.2 * k;
+          } else {
+            const k = (t - 0.80) / 0.20;
+            r = 0.70 + 0.3 * k; g = 0.45 + 0.55 * k; b = 0.35 + 0.65 * k;
+          }
+          elevColorArr[i * 3] = r;
+          elevColorArr[i * 3 + 1] = g;
+          elevColorArr[i * 3 + 2] = b;
+        }
+        elevationColors = new THREE.BufferAttribute(elevColorArr, 3);
+
+        const material = new THREE.MeshStandardMaterial({
+          vertexColors: hasColors,
+          color: hasColors ? 0xffffff : 0x58a6ff,
+          roughness: 0.7,
+          metalness: 0.05,
+          side: THREE.DoubleSide,
+        });
+
+        currentMesh = new THREE.Mesh(geometry, material);
+
+        // Center geometry horizontally and rotate to Three.js Y-up orientation
+        geometry.center();
+        currentMesh.rotation.x = -Math.PI / 2;
+        scene.add(currentMesh);
+
+        // Recompute world bounds after centering and orientation
+        const worldBBox = new THREE.Box3().setFromObject(currentMesh);
+        const worldSize = new THREE.Vector3();
+        worldBBox.getSize(worldSize);
+        modelRadius = geometry.boundingSphere.radius || Math.max(worldSize.x, worldSize.z) * 0.7;
+
+        // Position directional lights dynamically matching model scale
+        sunLight.position.set(modelRadius * 1.5, modelRadius * 2.5, modelRadius * 1.2);
+        fillLight.position.set(-modelRadius * 1.5, modelRadius * 1.0, -modelRadius * 1.2);
+
+        // Configure adaptive linear fog (never blacks out the model)
+        scene.fog = new THREE.Fog(0x07090e, modelRadius * 2.8, modelRadius * 10.0);
+
+        // Configure camera near / far clipping planes
+        camera.near = Math.max(0.5, modelRadius * 0.0002);
+        camera.far = Math.max(100000, modelRadius * 25.0);
+        camera.updateProjectionMatrix();
+
+        controls.minDistance = Math.max(1.0, modelRadius * 0.001);
+        controls.maxDistance = Math.max(100000, modelRadius * 15.0);
+
+        // Adaptive Navigation Step Sizing based on terrain extent
+        setupAdaptiveStepSizes(modelRadius);
+
+        // Update stats HUD
+        const faceCount = geometry.index ? geometry.index.count / 3 : vertCount / 3;
+        document.getElementById('stat-verts').innerText = vertCount.toLocaleString();
+        document.getElementById('stat-faces').innerText = Math.round(faceCount).toLocaleString();
+        document.getElementById('stat-dim-x').innerText = `${Math.round(worldSize.x).toLocaleString()}m × ${Math.round(worldSize.z).toLocaleString()}m`;
+        document.getElementById('stat-dim-z').innerText = `${Math.round(worldSize.y).toLocaleString()}m`;
+
+        document.getElementById('tel-elev-min').innerText = `${Math.round(elevMin).toLocaleString()} m`;
+        document.getElementById('tel-elev-max').innerText = `${Math.round(elevMax).toLocaleString()} m`;
+
+        // Frame initial overview view
+        setOverviewView(false);
+
+        // Build in-scene waypoint navigation arrows
+        createInSceneNavArrows();
+
+        // Hide loading overlay smoothly
+        const overlay = document.getElementById('loading-overlay');
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.style.display = 'none', 400);
+      },
+      function (xhr) {
+        if (xhr.lengthComputable) {
+          const percent = Math.round((xhr.loaded / xhr.total) * 100);
+          document.getElementById('loading-text').innerText = `Loading 3D Terrain... ${percent}%`;
+        }
+      },
+      function (error) {
+        console.error('Error loading PLY:', error);
+        document.getElementById('loading-text').innerText = 'Failed to load 3D terrain model.';
+      }
+    );
+
+    // ── Adaptive Step Size Presets ────────────────────────────────────
+    function setupAdaptiveStepSizes(radius) {
+      const container = document.getElementById('step-pill-container');
+      container.innerHTML = '';
+
+      // Create 4 logarithmic step sizes based on model radius
+      const s1 = Math.max(10, Math.round(radius * 0.002));
+      const s2 = Math.max(25, Math.round(radius * 0.008));
+      const s3 = Math.max(100, Math.round(radius * 0.03));
+      const s4 = Math.max(500, Math.round(radius * 0.10));
+
+      const steps = [
+        { label: formatDistance(s1), val: s1 },
+        { label: formatDistance(s2), val: s2, default: true },
+        { label: formatDistance(s3), val: s3 },
+        { label: formatDistance(s4), val: s4 },
+      ];
+
+      steps.forEach(step => {
+        const btn = document.createElement('button');
+        btn.className = `step-pill ${step.default ? 'active' : ''}`;
+        btn.innerText = step.label;
+        btn.setAttribute('data-step', step.val);
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.step-pill').forEach(p => p.classList.remove('active'));
+          btn.classList.add('active');
+          stepDistance = step.val;
+          document.getElementById('tel-step').innerText = formatDistance(stepDistance);
+        });
+        container.appendChild(btn);
+      });
+
+      stepDistance = s2;
+      document.getElementById('tel-step').innerText = formatDistance(stepDistance);
+    }
+
+    function formatDistance(meters) {
+      if (meters >= 1000) {
+        return `${(meters / 1000).toFixed(meters % 1000 === 0 ? 0 : 1)} km`;
+      }
+      return `${Math.round(meters)} m`;
+    }
+
+    // ── Camera Preset Views ───────────────────────────────────────────
+    function setOverviewView(animate = true) {
+      if (!currentMesh) return;
+      const dist = modelRadius * 1.5;
+      const targetPos = new THREE.Vector3(dist * 0.72, dist * 0.65, dist * 0.72);
+      const targetLook = new THREE.Vector3(0, 0, 0);
+
+      controls.maxPolarAngle = Math.PI * 0.49;
+      if (animate) {
+        smoothGlideCamera(targetPos, targetLook, 800);
+      } else {
+        camera.position.copy(targetPos);
+        controls.target.copy(targetLook);
+        controls.update();
+      }
+      setActiveViewBtn('btn-overview');
+    }
+
+    function setTopDownView() {
+      if (!currentMesh) return;
+      const dist = modelRadius * 1.7;
+      const targetPos = new THREE.Vector3(0.001, dist, 0);
+      const targetLook = new THREE.Vector3(0, 0, 0);
+      controls.maxPolarAngle = Math.PI;
+      smoothGlideCamera(targetPos, targetLook, 700);
+      setActiveViewBtn('btn-topdown');
+    }
+
+    function setIsometricView() {
+      if (!currentMesh) return;
+      const dist = modelRadius * 1.35;
+      const targetPos = new THREE.Vector3(dist * 0.8, dist * 0.55, dist * 0.8);
+      const targetLook = new THREE.Vector3(0, 0, 0);
+      controls.maxPolarAngle = Math.PI * 0.49;
+      smoothGlideCamera(targetPos, targetLook, 700);
+      setActiveViewBtn('btn-isometric');
+    }
+
+    function setSurfaceView() {
+      if (!currentMesh) return;
+      const startZ = modelRadius * 0.35;
+      const groundY = getTerrainHeightAt(0, startZ);
+      const eyeHeight = Math.max(15, modelRadius * 0.02);
+      const targetPos = new THREE.Vector3(0, groundY + eyeHeight, startZ);
+      const targetLook = new THREE.Vector3(0, groundY + eyeHeight * 0.5, 0);
+
+      controls.maxPolarAngle = Math.PI * 0.55;
+      smoothGlideCamera(targetPos, targetLook, 900);
+      setActiveViewBtn('btn-street');
+    }
+
+    function setActiveViewBtn(btnId) {
+      document.querySelectorAll('.btn-view').forEach(b => b.classList.remove('active'));
+      const active = document.getElementById(btnId);
+      if (active) active.classList.add('active');
+    }
+
+    // ── Terrain Height Raycaster (Ground-Following) ───────────────────
+    function getTerrainHeightAt(x, z) {
+      if (!currentMesh) return 0;
+      raycaster.set(new THREE.Vector3(x, modelRadius * 4.0, z), new THREE.Vector3(0, -1, 0));
+      raycaster.far = modelRadius * 8.0;
+      const intersects = raycaster.intersectObject(currentMesh);
+      if (intersects.length > 0) {
+        return intersects[0].point.y;
+      }
+      return 0;
+    }
+
+    // ── Google Maps-Style Cinematic Glide Transition ──────────────────
+    function smoothGlideCamera(newCamPos, newTargetPos, durationMs = 600) {
+      if (isTransitioning) return;
+      isTransitioning = true;
+
+      const startCamPos = camera.position.clone();
+      const startTarget = controls.target.clone();
+      const startTime = performance.now();
+
+      function animateStep(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / durationMs, 1.0);
+
+        // Cubic ease in-out
+        const ease = progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        camera.position.lerpVectors(startCamPos, newCamPos, ease);
+        controls.target.lerpVectors(startTarget, newTargetPos, ease);
+        controls.update();
+
+        if (progress < 1.0) {
+          requestAnimationFrame(animateStep);
+        } else {
+          camera.position.copy(newCamPos);
+          controls.target.copy(newTargetPos);
+          controls.update();
+          isTransitioning = false;
+          updateInSceneNavArrows();
+        }
+      }
+
+      requestAnimationFrame(animateStep);
+    }
+
+    // ── Directional Navigation Actions ────────────────────────────────
+    function navigateDirection(forwardStep, rightStep, upStep = 0) {
+      if (isTransitioning || !currentMesh) return;
+
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      forward.y = 0;
+      forward.normalize();
+
+      const right = new THREE.Vector3();
+      right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+      const delta = new THREE.Vector3()
+        .addScaledVector(forward, forwardStep * stepDistance)
+        .addScaledVector(right, rightStep * stepDistance);
+
+      const targetCamPos = camera.position.clone().add(delta);
+      const targetLookPos = controls.target.clone().add(delta);
+
+      // Keep camera above ground
+      const groundY = getTerrainHeightAt(targetCamPos.x, targetCamPos.z);
+      const minEyeHeight = Math.max(10, modelRadius * 0.015);
+      if (targetCamPos.y < groundY + minEyeHeight) {
+        targetCamPos.y = groundY + minEyeHeight;
+      }
+      targetCamPos.y += upStep * (stepDistance * 0.4);
+
+      smoothGlideCamera(targetCamPos, targetLookPos, 480);
+    }
+
+    function rotateCamera(angleDeg) {
+      if (isTransitioning || !currentMesh) return;
+      const angleRad = (angleDeg * Math.PI) / 180;
+
+      const offset = camera.position.clone().sub(controls.target);
+      offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), angleRad);
+
+      const targetCamPos = controls.target.clone().add(offset);
+      smoothGlideCamera(targetCamPos, controls.target, 450);
+    }
+
+    // ── Live Vertical Exaggeration (Z-Scale) ───────────────────────────
+    function applyVerticalExaggeration(zScale) {
+      if (!currentMesh || !originalPositions) return;
+      currentZScale = zScale;
+
+      const pos = currentMesh.geometry.attributes.position;
+      const orig = originalPositions.array;
+      const cur = pos.array;
+      const count = pos.count;
+
+      // In exported PLY, Z is vertical elevation before Three.js centering/rotation
+      // With currentMesh.rotation.x = -Math.PI/2, Z in local geometry becomes Y in world
+      for (let i = 0; i < count; i++) {
+        cur[i * 3 + 2] = orig[i * 3 + 2] * zScale;
+      }
+
+      pos.needsUpdate = true;
+      currentMesh.geometry.computeVertexNormals();
+      currentMesh.geometry.computeBoundingBox();
+      currentMesh.geometry.computeBoundingSphere();
+    }
+
+    // ── Render Style Modes (RGB / Elevation / Wireframe) ──────────────
+    function setRenderMode(mode) {
+      if (!currentMesh) return;
+      currentRenderMode = mode;
+
+      document.querySelectorAll('#mode-rgb, #mode-elevation, #mode-wireframe').forEach(b => b.classList.remove('active'));
+
+      if (mode === 'rgb') {
+        document.getElementById('mode-rgb').classList.add('active');
+        currentMesh.material.wireframe = false;
+        if (originalColors) {
+          currentMesh.geometry.setAttribute('color', originalColors);
+          currentMesh.material.vertexColors = true;
+          currentMesh.material.color.setHex(0xffffff);
+        } else {
+          currentMesh.material.vertexColors = false;
+          currentMesh.material.color.setHex(0x58a6ff);
+        }
+      } else if (mode === 'elevation') {
+        document.getElementById('mode-elevation').classList.add('active');
+        currentMesh.material.wireframe = false;
+        if (elevationColors) {
+          currentMesh.geometry.setAttribute('color', elevationColors);
+          currentMesh.material.vertexColors = true;
+          currentMesh.material.color.setHex(0xffffff);
+        }
+      } else if (mode === 'wireframe') {
+        document.getElementById('mode-wireframe').classList.add('active');
+        currentMesh.material.wireframe = true;
+      }
+      currentMesh.material.needsUpdate = true;
+    }
+
+    // ── In-Scene Directional 3D Navigation Chevrons ───────────────────
+    function createInSceneNavArrows() {
+      navGroup.clear();
+
+      const ringRadius = Math.max(10, modelRadius * 0.02);
+      const ringGeo = new THREE.RingGeometry(ringRadius * 0.7, ringRadius, 32);
+      ringGeo.rotateX(-Math.PI / 2);
+
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x58a6ff,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.75,
+        depthTest: true
+      });
+      const navRing = new THREE.Mesh(ringGeo, ringMat);
+      navGroup.add(navRing);
+
+      const chevronShape = new THREE.Shape();
+      chevronShape.moveTo(-10, -5);
+      chevronShape.lineTo(0, 10);
+      chevronShape.lineTo(10, -5);
+      chevronShape.lineTo(7, -8);
+      chevronShape.lineTo(0, 4);
+      chevronShape.lineTo(-7, -8);
+      chevronShape.closePath();
+
+      const chevronGeo = new THREE.ShapeGeometry(chevronShape);
+      chevronGeo.rotateX(-Math.PI / 2);
+      const chevronMat = new THREE.MeshBasicMaterial({
+        color: 0x3fb950,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.85,
+        depthTest: true
+      });
+      const chevron = new THREE.Mesh(chevronGeo, chevronMat);
+      const chevronScale = Math.max(0.5, modelRadius * 0.0015);
+      chevron.scale.set(chevronScale, chevronScale, chevronScale);
+      chevron.position.set(0, 2, -stepDistance);
+      chevron.name = 'forwardChevron';
+      navGroup.add(chevron);
+
+      updateInSceneNavArrows();
+    }
+
+    function updateInSceneNavArrows() {
+      if (!currentMesh) return;
+      const target = controls.target;
+      const groundY = getTerrainHeightAt(target.x, target.z);
+      const hoverHeight = Math.max(2.0, modelRadius * 0.003);
+      navGroup.position.set(target.x, groundY + hoverHeight, target.z);
+
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      forward.y = 0;
+      forward.normalize();
+      const angle = Math.atan2(forward.x, forward.z);
+      navGroup.rotation.y = angle;
+    }
+
+    // ── Click-To-Teleport Ground Interaction ──────────────────────────
+    renderer.domElement.addEventListener('pointerdown', (e) => {
+      const startX = e.clientX;
+      const startY = e.clientY;
+
+      function onPointerUp(upEvt) {
+        renderer.domElement.removeEventListener('pointerup', onPointerUp);
+        const dist = Math.hypot(upEvt.clientX - startX, upEvt.clientY - startY);
+        if (dist > 6 || !currentMesh) return;
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((upEvt.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((upEvt.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(currentMesh);
+
+        if (intersects.length > 0) {
+          const hitPoint = intersects[0].point;
+          const currentCamOffset = camera.position.clone().sub(controls.target);
+          const newCamPos = hitPoint.clone().add(currentCamOffset);
+
+          const minEyeHeight = Math.max(15, modelRadius * 0.02);
+          if (newCamPos.y < hitPoint.y + minEyeHeight) {
+            newCamPos.y = hitPoint.y + minEyeHeight;
+          }
+
+          smoothGlideCamera(newCamPos, hitPoint, 700);
+        }
+      }
+
+      renderer.domElement.addEventListener('pointerup', onPointerUp);
+    });
+
+    // ── UI Button Event Listeners ─────────────────────────────────────
+    document.getElementById('btn-overview').addEventListener('click', () => setOverviewView(true));
+    document.getElementById('btn-topdown').addEventListener('click', setTopDownView);
+    document.getElementById('btn-isometric').addEventListener('click', setIsometricView);
+    document.getElementById('btn-street').addEventListener('click', setSurfaceView);
+    document.getElementById('btn-reset').addEventListener('click', () => setOverviewView(true));
+
+    document.getElementById('mode-rgb').addEventListener('click', () => setRenderMode('rgb'));
+    document.getElementById('mode-elevation').addEventListener('click', () => setRenderMode('elevation'));
+    document.getElementById('mode-wireframe').addEventListener('click', () => setRenderMode('wireframe'));
+
+    // Z-Scale Vertical Exaggeration Buttons
+    document.querySelectorAll('.z-scale-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.z-scale-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const scale = parseFloat(btn.getAttribute('data-zscale'));
+        applyVerticalExaggeration(scale);
+      });
+    });
+
+    // Fullscreen Toggle
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // Launch Native Desktop Viewer via Backend API
+    document.getElementById('btn-launch-desktop').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-launch-desktop');
+      const originalText = btn.innerText;
+      btn.innerText = '⏳ Launching PyVista Desktop Viewer...';
+      btn.style.opacity = '0.7';
+
+      try {
+        const res = await fetch(`/api/v1/viewer/${requestId}/launch-desktop`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          btn.innerText = '✅ Desktop PyVista Window Launched!';
+        } else {
+          btn.innerText = `⚠️ ${data.detail || 'Could not launch desktop viewer'}`;
+        }
+      } catch (err) {
+        btn.innerText = '⚠️ Failed to connect to server';
+      }
+
+      setTimeout(() => {
+        btn.innerText = originalText;
+        btn.style.opacity = '1';
+      }, 3500);
+    });
+
+    // Google Maps Navigation Pad Buttons
+    document.getElementById('btn-move-fwd').addEventListener('click', () => navigateDirection(1, 0));
+    document.getElementById('btn-move-back').addEventListener('click', () => navigateDirection(-1, 0));
+    document.getElementById('btn-move-left').addEventListener('click', () => navigateDirection(0, -1));
+    document.getElementById('btn-move-right').addEventListener('click', () => navigateDirection(0, 1));
+    document.getElementById('btn-turn-left').addEventListener('click', () => rotateCamera(-45));
+    document.getElementById('btn-turn-right').addEventListener('click', () => rotateCamera(45));
+    document.getElementById('btn-elev-up').addEventListener('click', () => navigateDirection(0, 0, 1));
+    document.getElementById('btn-elev-down').addEventListener('click', () => navigateDirection(0, 0, -1));
+
+    // Keyboard Shortcuts (WASD / Arrows / QE / R)
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      switch (e.key.toLowerCase()) {
+        case 'arrowup':
+        case 'w':
+          navigateDirection(1, 0);
+          break;
+        case 'arrowdown':
+        case 's':
+          navigateDirection(-1, 0);
+          break;
+        case 'arrowleft':
+        case 'a':
+          navigateDirection(0, -1);
+          break;
+        case 'arrowright':
+        case 'd':
+          navigateDirection(0, 1);
+          break;
+        case 'q':
+          rotateCamera(-45);
+          break;
+        case 'e':
+          rotateCamera(45);
+          break;
+        case 'r':
+          setOverviewView(true);
+          break;
+      }
+    });
+
+    // Window Resize Handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ── Telemetry & Animation Loop ────────────────────────────────────
+    function updateTelemetry() {
+      const groundY = getTerrainHeightAt(camera.position.x, camera.position.z);
+      const alt = Math.max(0, camera.position.y - groundY);
+      document.getElementById('tel-height').innerText = formatDistance(alt);
+
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      let headingDeg = Math.round(Math.atan2(forward.x, -forward.z) * (180 / Math.PI));
+      if (headingDeg < 0) headingDeg += 360;
+
+      const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      const dirIndex = Math.round(headingDeg / 45) % 8;
+      document.getElementById('tel-heading').innerText = `${headingDeg}° ${directions[dirIndex]}`;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+
+      if (navGroup.children.length > 0) {
+        const pulse = 1.0 + 0.06 * Math.sin(performance.now() * 0.005);
+        navGroup.scale.set(pulse, pulse, pulse);
+      }
+
+      updateTelemetry();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

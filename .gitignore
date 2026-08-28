@@ -1,0 +1,40 @@
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Testing & Caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Artifacts & Output
+artifacts/*
+!artifacts/.gitkeep
+result/*
+!result/.gitkeep
+depthanything_output/*
+!depthanything_output/.gitkeep
+temp_v2/*
+!temp_v2/.gitkeep
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Large Models & Checkpoints
+checkpoints/
+*.pth
+*.pt
+*.onnx
+*.weights
