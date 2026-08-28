@@ -79,12 +79,6 @@
     .hover-glow-teal:hover {
       box-shadow: 0 0 25px rgba(105, 216, 205, 0.45);
     }
-    .tactical-border {
-      border: 1px solid #2F578A;
-    }
-    .tactical-border-active {
-      border: 1px solid #36ADA3;
-    }
 
     /* Tactical L-Bracket Corners */
     .bracket-box {
@@ -169,7 +163,7 @@
         <span class="material-symbols-outlined text-[16px]">share</span>
         <span class="hidden sm:inline">SHARE SESSION</span>
       </button>
-      <a id="btn-top-view-3d" href="/api/v1/viewer/3cc69191c5fb" target="_blank" class="text-xs font-mono bg-teal-accent text-deep-navy font-bold hover:bg-teal-bright px-3 py-1.5 transition-colors flex items-center gap-1 glow-teal">
+      <a id="btn-top-view-3d" href="#" target="_blank" class="text-xs font-mono bg-teal-accent text-deep-navy font-bold hover:bg-teal-bright px-3 py-1.5 transition-colors flex items-center gap-1 glow-teal opacity-50 cursor-not-allowed">
         <span class="material-symbols-outlined text-[16px]">3d_rotation</span>
         <span>OPEN 3D VIEWER</span>
       </a>
@@ -205,8 +199,8 @@
       </div>
       <div class="flex items-center gap-2 font-mono text-xs text-teal-bright">
         <span class="text-on-surface-variant">ACTIVE SESSION:</span>
-        <span id="active-req-id" class="bg-surface-container px-2 py-1 border border-steel-blue text-white font-bold">3cc69191c5fb</span>
-        <span id="state-tag" class="bg-teal-accent/20 text-teal-bright px-2 py-1 border border-teal-accent font-bold">STATE_C (DEM FUSED)</span>
+        <span id="active-req-id" class="bg-surface-container px-2 py-1 border border-steel-blue text-on-surface-variant font-bold">-- (STANDBY)</span>
+        <span id="state-tag" class="bg-steel-blue/30 text-on-surface-variant px-2 py-1 border border-steel-blue font-bold">AWAITING INGESTION</span>
       </div>
     </div>
 
@@ -266,11 +260,7 @@
               <div class="flex gap-2 pt-2 border-t border-steel-blue/50">
                 <button id="btn-quick-engage" type="button" class="flex-1 bg-teal-accent hover:bg-teal-bright text-deep-navy font-mono text-xs font-bold py-1.5 px-3 flex items-center justify-center gap-1.5 transition-colors">
                   <span class="material-symbols-outlined text-[16px]">bolt</span>
-                  <span>PROCESS NOW</span>
-                </button>
-                <button id="btn-quick-open-3d" type="button" class="bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright font-mono text-xs border border-teal-accent py-1.5 px-3 flex items-center justify-center gap-1.5 transition-colors">
-                  <span class="material-symbols-outlined text-[16px]">3d_rotation</span>
-                  <span>VIEW IN 3D</span>
+                  <span>PROCESS & LAUNCH 3D</span>
                 </button>
               </div>
             </div>
@@ -351,8 +341,8 @@
             <span id="btn-engage-label">ENGAGE RECONSTRUCTION PIPELINE</span>
           </button>
 
-          <!-- 3D Direct Exploration Action Button -->
-          <button id="btn-direct-3d-launch" class="mt-2.5 w-full bg-royal-blue/90 hover:bg-teal-accent hover:text-deep-navy text-teal-bright font-headline text-base uppercase tracking-wider py-2.5 px-4 font-bold border border-teal-accent transition-all flex items-center justify-center gap-2">
+          <!-- 3D Direct Exploration Action Button (Visible once loaded) -->
+          <button id="btn-direct-3d-launch" class="hidden mt-2.5 w-full bg-royal-blue/90 hover:bg-teal-accent hover:text-deep-navy text-teal-bright font-headline text-base uppercase tracking-wider py-2.5 px-4 font-bold border border-teal-accent transition-all flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-[20px]">3d_rotation</span>
             <span>LAUNCH FULL 3D TERRAIN NAVIGATOR</span>
           </button>
@@ -416,67 +406,92 @@
 
           <!-- View 1: Embedded 3D Canvas / Iframe Viewport -->
           <div id="view-container-3d" class="relative w-full h-[540px] bg-black border border-steel-blue overflow-hidden group">
-            <iframe id="viewer-iframe" src="/api/v1/viewer/3cc69191c5fb" class="w-full h-full border-0" allow="fullscreen"></iframe>
+            <iframe id="viewer-iframe" src="about:blank" class="w-full h-full border-0 hidden" allow="fullscreen"></iframe>
             
-            <!-- Standby Overlay if no model loaded -->
-            <div id="viewer-placeholder" class="hidden absolute inset-0 bg-deep-navy/95 flex flex-col items-center justify-center text-center p-6">
-              <span class="material-symbols-outlined text-6xl text-steel-blue mb-3 animate-pulse">public</span>
-              <h3 class="font-headline text-2xl uppercase text-teal-bright">3D Viewport Standby</h3>
-              <p class="font-mono text-xs text-on-surface-variant max-w-md mt-1">
-                Upload an aerial image or GeoTIFF DEM and engage the reconstruction pipeline to generate and navigate the 3D surface model.
+            <!-- Empty Standby Overlay (Visible at Start) -->
+            <div id="viewer-placeholder" class="absolute inset-0 bg-deep-navy/95 flex flex-col items-center justify-center text-center p-6 z-20">
+              <div class="w-20 h-20 rounded-full bg-royal-blue/80 border border-teal-accent/50 flex items-center justify-center mb-4 shadow-[0_0_25px_rgba(54,173,163,0.2)]">
+                <span class="material-symbols-outlined text-4xl text-teal-bright animate-pulse">view_in_ar</span>
+              </div>
+              <h3 class="font-headline text-2xl md:text-3xl uppercase text-teal-bright tracking-wider">3D Viewport Standby</h3>
+              <p class="font-mono text-xs text-on-surface-variant max-w-md mt-2 leading-relaxed">
+                No 3D terrain loaded yet. Ingest an aerial image or GeoTIFF DEM on the left, then click <strong class="text-teal-bright">Engage Reconstruction</strong> to synthesize and navigate the 3D surface.
               </p>
+              
+              <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <button id="btn-standby-himalayas" class="bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright text-xs font-mono py-2 px-4 border border-teal-accent transition-colors flex items-center gap-1.5">
+                  <span>🏔️ Load Himalayas GeoTIFF</span>
+                </button>
+                <button id="btn-standby-optical" class="bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright text-xs font-mono py-2 px-4 border border-teal-accent transition-colors flex items-center gap-1.5">
+                  <span>✈️ Load Aerial Optical</span>
+                </button>
+                <button id="btn-standby-browse" class="bg-surface-container hover:bg-steel-blue text-on-surface text-xs font-mono py-2 px-4 border border-steel-blue transition-colors flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[16px]">folder_open</span>
+                  <span>Browse Image File</span>
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- View 2: 2D Multi-Layer Comparison View -->
           <div id="view-container-2d" class="hidden w-full h-[540px] bg-deep-navy border border-steel-blue p-4 flex flex-col gap-4 overflow-y-auto font-mono">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-              <!-- Panel A: Input Optical -->
-              <div class="bg-royal-blue/60 border border-steel-blue p-3 flex flex-col">
-                <div class="flex justify-between items-center border-b border-steel-blue/70 pb-1.5 mb-2">
-                  <span class="text-xs font-bold text-teal-bright flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[16px]">image</span>
-                    INPUT OPTICAL / SAT-RGB
-                  </span>
-                  <span id="layer-input-dims" class="text-[10px] text-on-surface-variant">512 × 512</span>
-                </div>
-                <div class="flex-1 min-h-[200px] bg-black/70 flex items-center justify-center overflow-hidden border border-steel-blue/40">
-                  <img id="img-layer-input" src="/api/v1/artifacts/3cc69191c5fb/input_image.tif" alt="Input Imagery" class="max-h-full max-w-full object-contain">
-                </div>
-              </div>
-
-              <!-- Panel B: Inferno Relative Depth Map -->
-              <div class="bg-royal-blue/60 border border-steel-blue p-3 flex flex-col">
-                <div class="flex justify-between items-center border-b border-steel-blue/70 pb-1.5 mb-2">
-                  <span class="text-xs font-bold text-teal-bright flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[16px]">gradient</span>
-                    INFERNO RELATIVE DEPTH
-                  </span>
-                  <span class="text-[10px] text-teal-accent">0.0 (Far) → 1.0 (Near)</span>
-                </div>
-                <div class="flex-1 min-h-[200px] bg-black/70 flex items-center justify-center overflow-hidden border border-steel-blue/40">
-                  <img id="img-layer-depth" src="/api/v1/artifacts/3cc69191c5fb/relative_depth_colored.png" alt="Inferno Depth Colormap" class="max-h-full max-w-full object-contain">
-                </div>
-              </div>
+            <!-- Standby Overlay if no image loaded -->
+            <div id="layer-2d-empty" class="flex-1 flex flex-col items-center justify-center text-center p-6 border border-dashed border-steel-blue bg-royal-blue/30">
+              <span class="material-symbols-outlined text-4xl text-steel-blue mb-2">layers</span>
+              <p class="font-headline text-lg uppercase text-teal-bright">2D Inspection Standby</p>
+              <p class="font-mono text-xs text-on-surface-variant mt-1">Upload an image and engage pipeline to view side-by-side optical vs. depth colormap comparison.</p>
             </div>
 
-            <!-- Layer Information Strip -->
-            <div class="bg-surface-container p-3 border border-steel-blue grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div>
-                <span class="text-on-surface-variant text-[10px] block">CALIBRATION METHOD</span>
-                <span id="layer-calib-method" class="text-white font-bold">geotiff_dem_fusion</span>
+            <!-- Active Comparison Grid -->
+            <div id="layer-2d-active" class="hidden flex flex-col gap-4 flex-1">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+                <!-- Panel A: Input Optical -->
+                <div class="bg-royal-blue/60 border border-steel-blue p-3 flex flex-col">
+                  <div class="flex justify-between items-center border-b border-steel-blue/70 pb-1.5 mb-2">
+                    <span class="text-xs font-bold text-teal-bright flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[16px]">image</span>
+                      INPUT OPTICAL / SAT-RGB
+                    </span>
+                    <span id="layer-input-dims" class="text-[10px] text-on-surface-variant">--</span>
+                  </div>
+                  <div class="flex-1 min-h-[200px] bg-black/70 flex items-center justify-center overflow-hidden border border-steel-blue/40">
+                    <img id="img-layer-input" src="" alt="Input Imagery" class="max-h-full max-w-full object-contain">
+                  </div>
+                </div>
+
+                <!-- Panel B: Inferno Relative Depth Map -->
+                <div class="bg-royal-blue/60 border border-steel-blue p-3 flex flex-col">
+                  <div class="flex justify-between items-center border-b border-steel-blue/70 pb-1.5 mb-2">
+                    <span class="text-xs font-bold text-teal-bright flex items-center gap-1">
+                      <span class="material-symbols-outlined text-[16px]">gradient</span>
+                      INFERNO RELATIVE DEPTH
+                    </span>
+                    <span class="text-[10px] text-teal-accent">0.0 (Far) → 1.0 (Near)</span>
+                  </div>
+                  <div class="flex-1 min-h-[200px] bg-black/70 flex items-center justify-center overflow-hidden border border-steel-blue/40">
+                    <img id="img-layer-depth" src="" alt="Inferno Depth Colormap" class="max-h-full max-w-full object-contain">
+                  </div>
+                </div>
               </div>
-              <div>
-                <span class="text-on-surface-variant text-[10px] block">REFERENCE ELEVATION</span>
-                <span id="layer-ref-elev" class="text-teal-bright font-bold">5,340 m (Mean)</span>
-              </div>
-              <div>
-                <span class="text-on-surface-variant text-[10px] block">DETAIL MODULATION</span>
-                <span id="layer-mod-val" class="text-white font-bold">0.35 residual</span>
-              </div>
-              <div>
-                <span class="text-on-surface-variant text-[10px] block">SPATIAL RESOLUTION</span>
-                <span id="layer-px-spacing" class="text-teal-bright font-bold">30.0 m/px</span>
+
+              <!-- Layer Information Strip -->
+              <div class="bg-surface-container p-3 border border-steel-blue grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div>
+                  <span class="text-on-surface-variant text-[10px] block">CALIBRATION METHOD</span>
+                  <span id="layer-calib-method" class="text-white font-bold">--</span>
+                </div>
+                <div>
+                  <span class="text-on-surface-variant text-[10px] block">REFERENCE ELEVATION</span>
+                  <span id="layer-ref-elev" class="text-teal-bright font-bold">--</span>
+                </div>
+                <div>
+                  <span class="text-on-surface-variant text-[10px] block">DETAIL MODULATION</span>
+                  <span id="layer-mod-val" class="text-white font-bold">--</span>
+                </div>
+                <div>
+                  <span class="text-on-surface-variant text-[10px] block">SPATIAL RESOLUTION</span>
+                  <span id="layer-px-spacing" class="text-teal-bright font-bold">--</span>
+                </div>
               </div>
             </div>
           </div>
@@ -492,12 +507,12 @@
                   PINHOLE CAMERA INTRINSICS
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-[11px]">
-                  <div><span class="text-on-surface-variant">Focal Length (fx):</span> <span id="cam-fx" class="text-white font-bold">980.5 px</span></div>
-                  <div><span class="text-on-surface-variant">Focal Length (fy):</span> <span id="cam-fy" class="text-white font-bold">980.5 px</span></div>
-                  <div><span class="text-on-surface-variant">Principal X (cx):</span> <span id="cam-cx" class="text-white font-bold">512.0 px</span></div>
-                  <div><span class="text-on-surface-variant">Principal Y (cy):</span> <span id="cam-cy" class="text-white font-bold">384.0 px</span></div>
-                  <div><span class="text-on-surface-variant">Field of View:</span> <span id="cam-fov" class="text-teal-bright font-bold">55.0°</span></div>
-                  <div><span class="text-on-surface-variant">Estimation:</span> <span id="cam-est" class="text-teal-bright font-bold">Geometric Prior</span></div>
+                  <div><span class="text-on-surface-variant">Focal Length (fx):</span> <span id="cam-fx" class="text-white font-bold">--</span></div>
+                  <div><span class="text-on-surface-variant">Focal Length (fy):</span> <span id="cam-fy" class="text-white font-bold">--</span></div>
+                  <div><span class="text-on-surface-variant">Principal X (cx):</span> <span id="cam-cx" class="text-white font-bold">--</span></div>
+                  <div><span class="text-on-surface-variant">Principal Y (cy):</span> <span id="cam-cy" class="text-white font-bold">--</span></div>
+                  <div><span class="text-on-surface-variant">Field of View:</span> <span id="cam-fov" class="text-teal-bright font-bold">--</span></div>
+                  <div><span class="text-on-surface-variant">Estimation:</span> <span id="cam-est" class="text-teal-bright font-bold">--</span></div>
                 </div>
               </div>
 
@@ -508,10 +523,10 @@
                   GEOSPATIAL & CRS DEFINITION
                 </div>
                 <div class="space-y-1 text-[11px]">
-                  <div><span class="text-on-surface-variant">CRS:</span> <span id="geo-crs" class="text-white font-bold">EPSG:4326 (WGS 84)</span></div>
-                  <div><span class="text-on-surface-variant">Bounds:</span> <span id="geo-bounds" class="text-teal-bright font-bold">86.8°E, 27.9°N → 87.1°E, 28.1°N</span></div>
-                  <div><span class="text-on-surface-variant">Pixel Spacing:</span> <span id="geo-spacing" class="text-white font-bold">~30.0 m</span></div>
-                  <div><span class="text-on-surface-variant">State:</span> <span id="geo-state" class="text-teal-bright font-bold">STATE_C (Full Georeferenced DSM)</span></div>
+                  <div><span class="text-on-surface-variant">CRS:</span> <span id="geo-crs" class="text-white font-bold">--</span></div>
+                  <div><span class="text-on-surface-variant">Bounds:</span> <span id="geo-bounds" class="text-teal-bright font-bold">--</span></div>
+                  <div><span class="text-on-surface-variant">Pixel Spacing:</span> <span id="geo-spacing" class="text-white font-bold">--</span></div>
+                  <div><span class="text-on-surface-variant">State:</span> <span id="geo-state" class="text-teal-bright font-bold">Awaiting Ingestion</span></div>
                 </div>
               </div>
             </div>
@@ -526,10 +541,7 @@
                 <span class="text-[10px] text-teal-accent">ISO-8601 RECORD</span>
               </div>
               <div id="console-log-lines" class="flex-1 overflow-y-auto space-y-1 text-[11px] text-on-surface-variant">
-                <div class="text-teal-bright">[INFO] Ingested satellite imagery package.</div>
-                <div class="text-white">[INFO] Depth estimation completed via DepthAnythingV2-Small.</div>
-                <div class="text-teal-accent">[INFO] Executing high-precision DEM + DepthAnythingV2 fusion.</div>
-                <div class="text-on-surface-variant">[INFO] Binary PLY mesh generated with baked vertex colors.</div>
+                <div class="text-teal-bright">[SYSTEM] Tactical GIS Engine Initialized. Ready for satellite / aerial image ingestion.</div>
               </div>
             </div>
           </div>
@@ -538,19 +550,19 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 font-mono text-xs">
             <div class="bg-deep-navy/60 p-2 border border-steel-blue">
               <span class="text-on-surface-variant text-[10px] block uppercase">EXTENT X × Y</span>
-              <span id="tele-dim-x" class="text-white font-bold">158,530m × 99,559m</span>
+              <span id="tele-dim-x" class="text-white font-bold">--</span>
             </div>
             <div class="bg-deep-navy/60 p-2 border border-steel-blue">
               <span class="text-on-surface-variant text-[10px] block uppercase">ELEVATION RANGE</span>
-              <span id="tele-elev-range" class="text-teal-bright font-bold">228m → 8,731m</span>
+              <span id="tele-elev-range" class="text-teal-bright font-bold">--</span>
             </div>
             <div class="bg-deep-navy/60 p-2 border border-steel-blue">
               <span class="text-on-surface-variant text-[10px] block uppercase">SURFACE FACES</span>
-              <span id="tele-faces" class="text-white font-bold">2,959,480</span>
+              <span id="tele-faces" class="text-white font-bold">--</span>
             </div>
             <div class="bg-deep-navy/60 p-2 border border-steel-blue">
               <span class="text-on-surface-variant text-[10px] block uppercase">TOTAL LATENCY</span>
-              <span id="tele-latency" class="text-teal-bright font-bold">2.84 s</span>
+              <span id="tele-latency" class="text-teal-bright font-bold">--</span>
             </div>
           </div>
         </div>
@@ -572,7 +584,7 @@
           </h2>
           <div class="flex items-center gap-2">
             <span id="manifest-req-id" class="font-mono text-xs bg-deep-navy px-3 py-1 border border-steel-blue text-on-surface-variant">
-              SCN-ID-3cc69191c5fb
+              SCN-ID-STANDBY
             </span>
             <a id="btn-open-manifest-link" href="/frontend/code.html" class="text-xs font-mono bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright border border-steel-blue px-3 py-1 transition-colors">
               STANDALONE MANIFEST ↗
@@ -582,7 +594,12 @@
 
         <!-- Dynamic Artifacts Cards List -->
         <div id="manifest-items-container" class="flex flex-col gap-3 font-mono">
-          <!-- Populated dynamically via JavaScript -->
+          <!-- Standby Initial State -->
+          <div class="bg-deep-navy/40 border border-steel-blue/60 p-6 text-center text-on-surface-variant text-xs">
+            <span class="material-symbols-outlined text-3xl text-steel-blue mb-1">inventory_2</span>
+            <p class="font-bold uppercase text-white mt-1">Awaiting Pipeline Execution</p>
+            <p class="mt-0.5">Generated 3D meshes (.PLY), elevation models (.TIF), and depth array files (.NPY) will be populated here upon processing.</p>
+          </div>
         </div>
 
         <!-- Bulk Action: Download Full Package ZIP -->
@@ -590,7 +607,7 @@
           <div class="text-xs font-mono text-on-surface-variant">
             <span>PACKAGED PAYLOAD: All 3D meshes, DSM GeoTIFFs, depth maps, and metadata JSON.</span>
           </div>
-          <a id="btn-dl-zip" href="/api/v1/artifacts/3cc69191c5fb/bundle.zip" download class="w-full sm:w-auto bg-teal-accent text-deep-navy font-headline text-lg uppercase py-3 px-8 hover:bg-teal-bright border border-teal-accent transition-colors flex items-center justify-center gap-2.5 glow-teal hover-glow-teal font-bold">
+          <a id="btn-dl-zip" href="#" class="w-full sm:w-auto bg-steel-blue text-on-surface-variant font-headline text-lg uppercase py-3 px-8 border border-steel-blue transition-colors flex items-center justify-center gap-2.5 font-bold opacity-50 cursor-not-allowed pointer-events-none">
             <span class="material-symbols-outlined text-[20px]">archive</span>
             <span>DOWNLOAD FULL PACKAGE (ZIP)</span>
           </a>
@@ -602,7 +619,7 @@
 
   <!-- ── Tactical Client Logic ─────────────────────────────────────────── -->
   <script>
-    let currentRequestId = "3cc69191c5fb";
+    let currentRequestId = null;
     let selectedFile = null;
     let selectedSampleName = null;
 
@@ -654,7 +671,6 @@
     const previewBadge = document.getElementById("preview-type-badge");
     const btnClearFile = document.getElementById("btn-clear-file");
     const btnQuickEngage = document.getElementById("btn-quick-engage");
-    const btnQuickOpen3D = document.getElementById("btn-quick-open-3d");
 
     dropZone.addEventListener("click", () => fileInput.click());
 
@@ -774,12 +790,6 @@
       runPipelineExecution();
     });
 
-    btnQuickOpen3D.addEventListener("click", (e) => {
-      e.stopPropagation();
-      setTab("3d");
-      document.getElementById("viewport-panel").scrollIntoView({ behavior: "smooth" });
-    });
-
     // Engage Pipeline API Execution
     const btnEngage = document.getElementById("btn-engage-pipeline");
     const btnEngageLabel = document.getElementById("btn-engage-label");
@@ -877,7 +887,11 @@
     });
 
     document.getElementById("btn-popout-viewport").addEventListener("click", () => {
-      window.open(`/api/v1/viewer/${currentRequestId}`, "_blank");
+      if (currentRequestId) {
+        window.open(`/api/v1/viewer/${currentRequestId}`, "_blank");
+      } else {
+        showToast("Please upload and process an image first to launch the 3D viewer.");
+      }
     });
 
     // Update Dashboard UI with API Results
@@ -885,12 +899,16 @@
       const reqId = data.request_id;
       currentRequestId = reqId;
       document.getElementById("active-req-id").innerText = reqId;
+      document.getElementById("active-req-id").className = "bg-surface-container px-2 py-1 border border-steel-blue text-white font-bold";
       document.getElementById("manifest-req-id").innerText = `SCN-ID-${reqId}`;
 
-      // Update Navigation Links
-      document.getElementById("btn-top-view-3d").href = `/api/v1/viewer/${reqId}`;
+      // Update Top Navigation Link
+      const btnTop3D = document.getElementById("btn-top-view-3d");
+      btnTop3D.href = `/api/v1/viewer/${reqId}`;
+      btnTop3D.classList.remove("opacity-50", "cursor-not-allowed");
       document.getElementById("btn-nav-manifest").href = `/frontend/code.html?request_id=${reqId}`;
       document.getElementById("btn-open-manifest-link").href = `/frontend/code.html?request_id=${reqId}`;
+      document.getElementById("btn-direct-3d-launch").classList.remove("hidden");
 
       // Update State Tag
       const isMetric = data.metric_depth_available;
@@ -903,10 +921,15 @@
         stateTag.className = "bg-yellow-500/20 text-yellow-300 px-2 py-1 border border-yellow-400 font-bold";
       }
 
-      // Update 3D Viewport iframe
-      document.getElementById("viewer-iframe").src = `/api/v1/viewer/${reqId}`;
+      // Hide Standby Placeholder and Show 3D Viewport iframe
+      document.getElementById("viewer-placeholder").classList.add("hidden");
+      const iframe = document.getElementById("viewer-iframe");
+      iframe.classList.remove("hidden");
+      iframe.src = `/api/v1/viewer/${reqId}`;
 
       // Update 2D Inspection Layer Images
+      document.getElementById("layer-2d-empty").classList.add("hidden");
+      document.getElementById("layer-2d-active").classList.remove("hidden");
       if (data.artifacts.input_image) {
         document.getElementById("img-layer-input").src = data.artifacts.input_image.download_url;
       }
@@ -918,7 +941,7 @@
       document.getElementById("layer-input-dims").innerText = `${w} × ${h} px`;
       document.getElementById("layer-calib-method").innerText = data.calibration?.method || "none";
       const calVal = data.calibration?.reference_value;
-      document.getElementById("layer-ref-elev").innerText = calVal ? `${Math.round(calVal).toLocaleString()} m` : "Relative Depth";
+      document.getElementById("layer-ref-elev").innerText = calVal ? `${Math.round(calVal).toLocaleString()} m (Mean)` : "Relative Depth (0.0 - 1.0)";
       document.getElementById("layer-mod-val").innerText = `${sliderModulation.value} residual`;
       const px = data.metadata.geospatial?.pixel_spacing_m || 1.0;
       document.getElementById("layer-px-spacing").innerText = `${px.toFixed(1)} m/px`;
@@ -1065,11 +1088,17 @@
         container.appendChild(card);
       });
 
-      document.getElementById("btn-dl-zip").href = `/api/v1/artifacts/${reqId}/bundle.zip`;
+      const dlZip = document.getElementById("btn-dl-zip");
+      dlZip.href = `/api/v1/artifacts/${reqId}/bundle.zip`;
+      dlZip.className = "w-full sm:w-auto bg-teal-accent text-deep-navy font-headline text-lg uppercase py-3 px-8 hover:bg-teal-bright border border-teal-accent transition-colors flex items-center justify-center gap-2.5 glow-teal hover-glow-teal font-bold cursor-pointer";
     }
 
     // Launch Desktop PyVista Window
     document.getElementById("btn-launch-desktop-pv").addEventListener("click", async () => {
+      if (!currentRequestId) {
+        showToast("Please upload and process an image first.");
+        return;
+      }
       const btn = document.getElementById("btn-launch-desktop-pv");
       const orig = btn.innerHTML;
       btn.innerHTML = `<span class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span><span>LAUNCHING...</span>`;
@@ -1092,81 +1121,87 @@
       }, 3000);
     });
 
-    // Quick Sample 1: Himalayas GeoTIFF
-    document.getElementById("btn-sample-dem").addEventListener("click", () => {
-      selectedSampleName = "sample_terrain.tif";
+    // Helper to select sample
+    function selectSample(name, label, size, isDem) {
+      selectedSampleName = name;
       selectedFile = null;
-      previewFilename.innerText = "sample_terrain.tif (Himalayas DEM)";
-      previewFilesize.innerText = "8.00 MB";
-      previewBadge.innerText = "GEOTIFF DEM READY";
-      previewBadge.className = "inline-block font-mono text-[10px] bg-teal-accent/20 text-teal-bright px-1.5 py-0.5 border border-teal-accent mt-0.5";
+      previewFilename.innerText = label;
+      previewFilesize.innerText = size;
+      if (isDem) {
+        previewBadge.innerText = "GEOTIFF DEM READY";
+        previewBadge.className = "inline-block font-mono text-[10px] bg-teal-accent/20 text-teal-bright px-1.5 py-0.5 border border-teal-accent mt-0.5";
+        sliderZEx.value = 1.5;
+        valZEx.innerText = "1.50×";
+        sliderModulation.value = 0.35;
+        valModulation.innerText = "0.35";
+      } else {
+        previewBadge.innerText = "OPTICAL RGB READY";
+        previewBadge.className = "inline-block font-mono text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 border border-blue-400 mt-0.5";
+        sliderZEx.value = 1.0;
+        valZEx.innerText = "1.00×";
+        sliderModulation.value = 0.40;
+        valModulation.innerText = "0.40";
+      }
       previewThumb.classList.add("hidden");
       previewIcon.classList.remove("hidden");
       dropPrompt.classList.add("hidden");
       previewBox.classList.remove("hidden");
+      showToast(`Selected: ${label}. Click Engage Pipeline!`);
+    }
 
-      // Set recommended slider presets
-      sliderZEx.value = 1.5;
-      valZEx.innerText = "1.50×";
-      sliderModulation.value = 0.35;
-      valModulation.innerText = "0.35";
-      showToast("Selected: Himalayas GeoTIFF DEM. Click Engage Pipeline!");
+    // Quick Sample 1: Himalayas GeoTIFF
+    document.getElementById("btn-sample-dem").addEventListener("click", () => {
+      selectSample("sample_terrain.tif", "sample_terrain.tif (Himalayas DEM)", "8.00 MB", true);
+    });
+    document.getElementById("btn-standby-himalayas").addEventListener("click", () => {
+      selectSample("sample_terrain.tif", "sample_terrain.tif (Himalayas DEM)", "8.00 MB", true);
+      runPipelineExecution();
     });
 
     // Quick Sample 2: Aerial Optical
     document.getElementById("btn-sample-optical").addEventListener("click", () => {
-      selectedSampleName = "test_optical.jpg";
-      selectedFile = null;
-      previewFilename.innerText = "test_optical.jpg (Aerial Survey)";
-      previewFilesize.innerText = "0.02 MB";
-      previewBadge.innerText = "OPTICAL RGB READY";
-      previewBadge.className = "inline-block font-mono text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 border border-blue-400 mt-0.5";
-      previewThumb.classList.add("hidden");
-      previewIcon.classList.remove("hidden");
-      dropPrompt.classList.add("hidden");
-      previewBox.classList.remove("hidden");
+      selectSample("test_optical.jpg", "test_optical.jpg (Aerial Survey)", "0.02 MB", false);
+    });
+    document.getElementById("btn-standby-optical").addEventListener("click", () => {
+      selectSample("test_optical.jpg", "test_optical.jpg (Aerial Survey)", "0.02 MB", false);
+      runPipelineExecution();
+    });
 
-      // Set recommended slider presets
-      sliderZEx.value = 1.0;
-      valZEx.innerText = "1.00×";
-      sliderModulation.value = 0.40;
-      valModulation.innerText = "0.40";
-      showToast("Selected: Aerial Optical Survey. Click Engage Pipeline!");
+    // Standby browse button
+    document.getElementById("btn-standby-browse").addEventListener("click", () => {
+      fileInput.click();
     });
 
     // Share Session URL Copy Button
     document.getElementById("btn-copy-session").addEventListener("click", () => {
+      if (!currentRequestId) {
+        showToast("No active session to share yet. Ingest an image first.");
+        return;
+      }
       const shareUrl = `${window.location.origin}/?request_id=${currentRequestId}`;
       navigator.clipboard.writeText(shareUrl).then(() => {
         showToast("Session URL copied to clipboard!");
       });
     });
 
-    // Hydrate Session from URL search param or load default
-    async function loadInitialSession() {
+    // Hydrate Session only if URL explicitly has request_id
+    async function checkUrlSession() {
       const urlParams = new URLSearchParams(window.location.search);
-      const reqId = urlParams.get("request_id") || currentRequestId;
+      const reqId = urlParams.get("request_id");
 
-      try {
-        const res = await fetch(`/api/v1/sessions/${reqId}`);
-        if (res.ok) {
-          const data = await res.json();
-          updateDashboardWithResponse(data);
-          return;
+      if (reqId) {
+        try {
+          const res = await fetch(`/api/v1/sessions/${reqId}`);
+          if (res.ok) {
+            const data = await res.json();
+            updateDashboardWithResponse(data);
+          }
+        } catch (e) {
+          console.warn("Could not load URL session:", e);
         }
-      } catch (e) {
-        console.warn("Could not load initial session:", e);
       }
-
-      // Initial manifest fallback render
-      renderArtifactsManifest({
-        "3d_model": { filename: "terrain_3d_mesh.ply", size_bytes: 62189384, download_url: `/api/v1/artifacts/${reqId}/terrain_3d_mesh.ply` },
-        "dsm": { filename: "fused_dsm.tif", size_bytes: 11864076, download_url: `/api/v1/artifacts/${reqId}/fused_dsm.tif` },
-        "relative_depth_colored": { filename: "relative_depth_colored.png", size_bytes: 598158, download_url: `/api/v1/artifacts/${reqId}/relative_depth_colored.png` },
-        "relative_depth": { filename: "relative_depth.npy", size_bytes: 11858048, download_url: `/api/v1/artifacts/${reqId}/relative_depth.npy` },
-      }, reqId);
     }
-    loadInitialSession();
+    checkUrlSession();
   </script>
 </body>
 </html>
