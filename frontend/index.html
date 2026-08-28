@@ -74,10 +74,10 @@
 
     /* Tactical Glows & Brackets */
     .glow-teal {
-      box-shadow: 0 0 20px rgba(54, 173, 163, 0.2);
+      box-shadow: 0 0 20px rgba(54, 173, 163, 0.25);
     }
     .hover-glow-teal:hover {
-      box-shadow: 0 0 25px rgba(105, 216, 205, 0.4);
+      box-shadow: 0 0 25px rgba(105, 216, 205, 0.45);
     }
     .tactical-border {
       border: 1px solid #2F578A;
@@ -169,13 +169,17 @@
         <span class="material-symbols-outlined text-[16px]">share</span>
         <span class="hidden sm:inline">SHARE SESSION</span>
       </button>
-      <a href="/frontend/code.html" class="text-xs font-mono text-on-surface-variant hover:text-teal-bright border border-steel-blue px-3 py-1.5 transition-colors flex items-center gap-1">
+      <a id="btn-top-view-3d" href="/api/v1/viewer/3cc69191c5fb" target="_blank" class="text-xs font-mono bg-teal-accent text-deep-navy font-bold hover:bg-teal-bright px-3 py-1.5 transition-colors flex items-center gap-1 glow-teal">
+        <span class="material-symbols-outlined text-[16px]">3d_rotation</span>
+        <span>OPEN 3D VIEWER</span>
+      </a>
+      <a id="btn-nav-manifest" href="/frontend/code.html" class="text-xs font-mono text-on-surface-variant hover:text-teal-bright border border-steel-blue px-3 py-1.5 transition-colors flex items-center gap-1">
         <span class="material-symbols-outlined text-[16px]">folder_zip</span>
         <span class="hidden sm:inline">MANIFEST</span>
       </a>
-      <a href="/docs" target="_blank" class="text-xs font-mono text-teal-bright hover:bg-teal-accent hover:text-deep-navy border border-teal-accent px-3 py-1.5 transition-colors flex items-center gap-1">
+      <a href="/docs" target="_blank" class="text-xs font-mono text-teal-bright hover:bg-teal-accent hover:text-deep-navy border border-teal-accent px-3 py-1.5 transition-colors flex items-center gap-1 hidden md:flex">
         <span class="material-symbols-outlined text-[16px]">api</span>
-        <span>SWAGGER DOCS</span>
+        <span>SWAGGER</span>
       </a>
     </div>
   </header>
@@ -223,38 +227,52 @@
           </h2>
 
           <!-- Drag and Drop Zone -->
-          <div id="drop-zone" class="border-2 border-dashed border-steel-blue hover:border-teal-accent bg-deep-navy/40 p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 group relative">
+          <div id="drop-zone" class="border-2 border-dashed border-steel-blue hover:border-teal-accent bg-deep-navy/40 p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 group relative">
             <input type="file" id="file-input" class="hidden" accept=".tif,.tiff,.png,.jpg,.jpeg">
             
             <div id="drop-prompt" class="flex flex-col items-center gap-2">
-              <div class="w-14 h-14 bg-royal-blue border border-steel-blue group-hover:border-teal-accent flex items-center justify-center text-teal-bright transition-colors">
-                <span class="material-symbols-outlined text-3xl">cloud_upload</span>
+              <div class="w-12 h-12 bg-royal-blue border border-steel-blue group-hover:border-teal-accent flex items-center justify-center text-teal-bright transition-colors">
+                <span class="material-symbols-outlined text-2xl">cloud_upload</span>
               </div>
-              <p class="font-headline text-lg uppercase text-on-surface mt-2 tracking-wide">
+              <p class="font-headline text-base uppercase text-on-surface mt-1 tracking-wide">
                 Drop Satellite Image or GeoTIFF DEM
               </p>
-              <p class="font-mono text-xs text-on-surface-variant">
+              <p class="font-mono text-[11px] text-on-surface-variant">
                 Supported: GeoTIFF (.tif), High-Res PNG, JPEG
               </p>
-              <span class="mt-2 bg-royal-blue px-3 py-1 font-mono text-xs text-teal-bright border border-steel-blue group-hover:bg-teal-accent group-hover:text-deep-navy transition-colors">
+              <span class="mt-1 bg-royal-blue px-3 py-1 font-mono text-xs text-teal-bright border border-steel-blue group-hover:bg-teal-accent group-hover:text-deep-navy transition-colors">
                 BROWSE FILES
               </span>
             </div>
 
-            <!-- Upload File Preview -->
-            <div id="file-preview-box" class="hidden w-full flex items-center gap-4 text-left">
-              <div class="w-16 h-16 bg-surface-container border border-teal-accent flex-shrink-0 overflow-hidden flex items-center justify-center">
-                <img id="preview-thumb" src="" alt="Thumb" class="w-full h-full object-cover hidden">
-                <span id="preview-icon" class="material-symbols-outlined text-teal-bright text-3xl">terrain</span>
+            <!-- Upload File Preview & Actions -->
+            <div id="file-preview-box" class="hidden w-full flex flex-col gap-3 text-left">
+              <div class="flex items-center gap-3 w-full">
+                <div class="w-14 h-14 bg-surface-container border border-teal-accent flex-shrink-0 overflow-hidden flex items-center justify-center">
+                  <img id="preview-thumb" src="" alt="Thumb" class="w-full h-full object-cover hidden">
+                  <span id="preview-icon" class="material-symbols-outlined text-teal-bright text-2xl">terrain</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p id="preview-filename" class="font-mono text-xs font-bold text-white truncate">image.tif</p>
+                  <p id="preview-filesize" class="font-mono text-[11px] text-on-surface-variant">0 MB</p>
+                  <span id="preview-type-badge" class="inline-block font-mono text-[10px] bg-teal-accent/20 text-teal-bright px-1.5 py-0.5 border border-teal-accent mt-0.5">GEOTIFF READY</span>
+                </div>
+                <button id="btn-clear-file" type="button" class="text-on-surface-variant hover:text-red-400 p-1" title="Remove File">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
               </div>
-              <div class="flex-1 min-w-0">
-                <p id="preview-filename" class="font-mono text-sm font-bold text-white truncate">image.tif</p>
-                <p id="preview-filesize" class="font-mono text-xs text-on-surface-variant">0 MB</p>
-                <span id="preview-type-badge" class="inline-block font-mono text-[10px] bg-teal-accent/20 text-teal-bright px-1.5 py-0.5 border border-teal-accent mt-1">GEOTIFF READY</span>
+
+              <!-- Quick Action Inside Preview Box -->
+              <div class="flex gap-2 pt-2 border-t border-steel-blue/50">
+                <button id="btn-quick-engage" type="button" class="flex-1 bg-teal-accent hover:bg-teal-bright text-deep-navy font-mono text-xs font-bold py-1.5 px-3 flex items-center justify-center gap-1.5 transition-colors">
+                  <span class="material-symbols-outlined text-[16px]">bolt</span>
+                  <span>PROCESS NOW</span>
+                </button>
+                <button id="btn-quick-open-3d" type="button" class="bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright font-mono text-xs border border-teal-accent py-1.5 px-3 flex items-center justify-center gap-1.5 transition-colors">
+                  <span class="material-symbols-outlined text-[16px]">3d_rotation</span>
+                  <span>VIEW IN 3D</span>
+                </button>
               </div>
-              <button id="btn-clear-file" type="button" class="text-on-surface-variant hover:text-red-400 p-1" title="Remove File">
-                <span class="material-symbols-outlined">close</span>
-              </button>
             </div>
           </div>
 
@@ -265,10 +283,10 @@
               SAMPLES:
             </span>
             <div class="flex items-center gap-2">
-              <button id="btn-sample-dem" class="bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright px-2.5 py-1 border border-teal-accent/60 transition-colors flex items-center gap-1">
+              <button id="btn-sample-dem" class="bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright px-2.5 py-1 border border-teal-accent/60 transition-colors flex items-center gap-1" title="Load synthetic Himalayas 4-band GeoTIFF DEM (ISRO/Everest)">
                 <span>🏔️ Himalayas GeoTIFF</span>
               </button>
-              <button id="btn-sample-optical" class="bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright px-2.5 py-1 border border-teal-accent/60 transition-colors flex items-center gap-1">
+              <button id="btn-sample-optical" class="bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright px-2.5 py-1 border border-teal-accent/60 transition-colors flex items-center gap-1" title="Load aerial optical survey photo">
                 <span>✈️ Aerial Optical</span>
               </button>
             </div>
@@ -333,6 +351,12 @@
             <span id="btn-engage-label">ENGAGE RECONSTRUCTION PIPELINE</span>
           </button>
 
+          <!-- 3D Direct Exploration Action Button -->
+          <button id="btn-direct-3d-launch" class="mt-2.5 w-full bg-royal-blue/90 hover:bg-teal-accent hover:text-deep-navy text-teal-bright font-headline text-base uppercase tracking-wider py-2.5 px-4 font-bold border border-teal-accent transition-all flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[20px]">3d_rotation</span>
+            <span>LAUNCH FULL 3D TERRAIN NAVIGATOR</span>
+          </button>
+
           <!-- Processing Progress Overlay / Indicator -->
           <div id="processing-bar" class="hidden mt-4 bg-deep-navy border border-teal-accent p-3">
             <div class="flex justify-between text-xs font-mono text-teal-bright mb-1">
@@ -344,7 +368,7 @@
             </div>
             <!-- Stage Checklist -->
             <div id="stage-checklist" class="space-y-1 font-mono text-[11px] text-on-surface-variant">
-              <div id="stage-1" class="flex items-center gap-1.5 text-teal-bright"><span class="material-symbols-outlined text-[14px]">check_circle</span> 1. Ingestion & Image Ingestion</div>
+              <div id="stage-1" class="flex items-center gap-1.5 text-teal-bright"><span class="material-symbols-outlined text-[14px]">check_circle</span> 1. Ingestion & Image Processing</div>
               <div id="stage-2" class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">hourglass_empty</span> 2. DepthAnything V2 Inference</div>
               <div id="stage-3" class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">hourglass_empty</span> 3. Camera Modeling & Backprojection</div>
               <div id="stage-4" class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">hourglass_empty</span> 4. 3D Mesh Synthesis & PLY Baking</div>
@@ -356,7 +380,7 @@
       <!-- ── Right Column: Multi-View (3D / 2D / Telemetry) (7 Cols) ──────── -->
       <div class="lg:col-span-7 flex flex-col gap-5">
         
-        <div class="bg-royal-blue/70 backdrop-blur-xl border border-steel-blue p-container-padding bracket-box relative flex flex-col">
+        <div id="viewport-panel" class="bg-royal-blue/70 backdrop-blur-xl border border-steel-blue p-container-padding bracket-box relative flex flex-col">
           <!-- Viewport Mode Tabs & Action Bar -->
           <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-steel-blue pb-3 mb-3">
             <div class="flex items-center gap-1 bg-deep-navy p-1 border border-steel-blue">
@@ -375,8 +399,16 @@
             </div>
 
             <div class="flex items-center gap-2">
-              <button id="btn-launch-desktop-pv" class="text-[11px] font-mono bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright border border-teal-accent px-3 py-1.5 transition-colors flex items-center gap-1.5">
+              <button id="btn-fullscreen-viewport" class="text-[11px] font-mono bg-royal-blue hover:bg-steel-blue text-on-surface border border-steel-blue px-2.5 py-1.5 transition-colors flex items-center gap-1" title="Toggle Fullscreen 3D Viewport">
+                <span class="material-symbols-outlined text-[14px]">fullscreen</span>
+                <span class="hidden sm:inline">FULLSCREEN</span>
+              </button>
+              <button id="btn-popout-viewport" class="text-[11px] font-mono bg-royal-blue hover:bg-steel-blue text-on-surface border border-steel-blue px-2.5 py-1.5 transition-colors flex items-center gap-1" title="Open 3D Navigator in standalone tab">
                 <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                <span class="hidden sm:inline">POP-OUT</span>
+              </button>
+              <button id="btn-launch-desktop-pv" class="text-[11px] font-mono bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright border border-teal-accent px-3 py-1.5 transition-colors flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px]">flight</span>
                 <span>NATIVE PYVISTA</span>
               </button>
             </div>
@@ -542,7 +574,7 @@
             <span id="manifest-req-id" class="font-mono text-xs bg-deep-navy px-3 py-1 border border-steel-blue text-on-surface-variant">
               SCN-ID-3cc69191c5fb
             </span>
-            <a href="/frontend/code.html" class="text-xs font-mono bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright border border-steel-blue px-3 py-1 transition-colors">
+            <a id="btn-open-manifest-link" href="/frontend/code.html" class="text-xs font-mono bg-royal-blue hover:bg-teal-accent hover:text-deep-navy text-teal-bright border border-steel-blue px-3 py-1 transition-colors">
               STANDALONE MANIFEST ↗
             </a>
           </div>
@@ -610,7 +642,7 @@
     initSystemHealth();
     setInterval(initSystemHealth, 30000);
 
-    // Setup Drag & Drop
+    // Setup Drag & Drop & File Picker
     const dropZone = document.getElementById("drop-zone");
     const fileInput = document.getElementById("file-input");
     const dropPrompt = document.getElementById("drop-prompt");
@@ -621,6 +653,8 @@
     const previewFilesize = document.getElementById("preview-filesize");
     const previewBadge = document.getElementById("preview-type-badge");
     const btnClearFile = document.getElementById("btn-clear-file");
+    const btnQuickEngage = document.getElementById("btn-quick-engage");
+    const btnQuickOpen3D = document.getElementById("btn-quick-open-3d");
 
     dropZone.addEventListener("click", () => fileInput.click());
 
@@ -665,10 +699,10 @@
       const ext = file.name.split('.').pop().toLowerCase();
       if (['tif', 'tiff'].includes(ext)) {
         previewBadge.innerText = "GEOTIFF DEM READY";
-        previewBadge.className = "inline-block font-mono text-[10px] bg-teal-accent/20 text-teal-bright px-1.5 py-0.5 border border-teal-accent mt-1";
+        previewBadge.className = "inline-block font-mono text-[10px] bg-teal-accent/20 text-teal-bright px-1.5 py-0.5 border border-teal-accent mt-0.5";
       } else {
         previewBadge.innerText = "OPTICAL RGB READY";
-        previewBadge.className = "inline-block font-mono text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 border border-blue-400 mt-1";
+        previewBadge.className = "inline-block font-mono text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 border border-blue-400 mt-0.5";
       }
 
       if (['jpg', 'jpeg', 'png'].includes(ext)) {
@@ -686,6 +720,7 @@
 
       dropPrompt.classList.add("hidden");
       previewBox.classList.remove("hidden");
+      showToast(`Selected: ${file.name}`);
     }
 
     // Sliders Live Readout
@@ -733,14 +768,25 @@
     tab2d.addEventListener("click", () => setTab("2d"));
     tabLogs.addEventListener("click", () => setTab("logs"));
 
+    // Quick In-Card Buttons
+    btnQuickEngage.addEventListener("click", (e) => {
+      e.stopPropagation();
+      runPipelineExecution();
+    });
+
+    btnQuickOpen3D.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setTab("3d");
+      document.getElementById("viewport-panel").scrollIntoView({ behavior: "smooth" });
+    });
+
     // Engage Pipeline API Execution
     const btnEngage = document.getElementById("btn-engage-pipeline");
     const btnEngageLabel = document.getElementById("btn-engage-label");
     const processingBar = document.getElementById("processing-bar");
     const procStatusText = document.getElementById("proc-status-text");
-    const procProgressFill = document.getElementById("proc-progress-fill");
 
-    btnEngage.addEventListener("click", async () => {
+    async function runPipelineExecution() {
       if (!selectedFile && !selectedSampleName) {
         alert("Please drop or select an aerial image, GeoTIFF DEM, or click a Quick Sample first!");
         return;
@@ -799,6 +845,7 @@
         window.history.replaceState({ requestId: data.request_id }, "", newUrl);
 
         updateDashboardWithResponse(data);
+        setTab("3d");
         showToast(`Reconstruction Complete: ${data.request_id}`);
       } catch (err) {
         alert(`Pipeline Error: ${err.message}`);
@@ -808,6 +855,29 @@
         btnEngageLabel.innerText = "ENGAGE RECONSTRUCTION PIPELINE";
         processingBar.classList.add("hidden");
       }
+    }
+
+    btnEngage.addEventListener("click", runPipelineExecution);
+
+    // Direct Launch 3D Button (Left Column Bottom)
+    document.getElementById("btn-direct-3d-launch").addEventListener("click", () => {
+      setTab("3d");
+      document.getElementById("viewport-panel").scrollIntoView({ behavior: "smooth" });
+      showToast("Switched to 3D Terrain Navigator");
+    });
+
+    // Viewport Header Controls: Fullscreen & Popout
+    document.getElementById("btn-fullscreen-viewport").addEventListener("click", () => {
+      const container = document.getElementById("view-container-3d");
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    document.getElementById("btn-popout-viewport").addEventListener("click", () => {
+      window.open(`/api/v1/viewer/${currentRequestId}`, "_blank");
     });
 
     // Update Dashboard UI with API Results
@@ -816,6 +886,11 @@
       currentRequestId = reqId;
       document.getElementById("active-req-id").innerText = reqId;
       document.getElementById("manifest-req-id").innerText = `SCN-ID-${reqId}`;
+
+      // Update Navigation Links
+      document.getElementById("btn-top-view-3d").href = `/api/v1/viewer/${reqId}`;
+      document.getElementById("btn-nav-manifest").href = `/frontend/code.html?request_id=${reqId}`;
+      document.getElementById("btn-open-manifest-link").href = `/frontend/code.html?request_id=${reqId}`;
 
       // Update State Tag
       const isMetric = data.metric_depth_available;
@@ -1024,7 +1099,7 @@
       previewFilename.innerText = "sample_terrain.tif (Himalayas DEM)";
       previewFilesize.innerText = "8.00 MB";
       previewBadge.innerText = "GEOTIFF DEM READY";
-      previewBadge.className = "inline-block font-mono text-[10px] bg-teal-accent/20 text-teal-bright px-1.5 py-0.5 border border-teal-accent mt-1";
+      previewBadge.className = "inline-block font-mono text-[10px] bg-teal-accent/20 text-teal-bright px-1.5 py-0.5 border border-teal-accent mt-0.5";
       previewThumb.classList.add("hidden");
       previewIcon.classList.remove("hidden");
       dropPrompt.classList.add("hidden");
@@ -1045,7 +1120,7 @@
       previewFilename.innerText = "test_optical.jpg (Aerial Survey)";
       previewFilesize.innerText = "0.02 MB";
       previewBadge.innerText = "OPTICAL RGB READY";
-      previewBadge.className = "inline-block font-mono text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 border border-blue-400 mt-1";
+      previewBadge.className = "inline-block font-mono text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 border border-blue-400 mt-0.5";
       previewThumb.classList.add("hidden");
       previewIcon.classList.remove("hidden");
       dropPrompt.classList.add("hidden");
